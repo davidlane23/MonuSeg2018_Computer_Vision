@@ -19,7 +19,8 @@ import numpy as np
 import xml.etree.ElementTree as et
 import matplotlib.pyplot as plt
 
-from torchvision.models.segmentation import fcn_resnet50, FCN_ResNet50_Weights
+# from torchvision.models.segmentation import fcn_resnet50, FCN_ResNet50_Weights
+from torchvision.models import segmentation
 
 
 class ImageSegmentationDataset(torch.utils.data.Dataset):
@@ -116,11 +117,13 @@ def train_model(model, train_loader, criterion, optimizer, device):
         images, masks = images.to(device), masks.to(device)
         # print(len(images))
         # print(len(masks))
-        outputs = model(images)
+
+        # Extract key from input images
+        outputs = model(images)['out']
         print(outputs)
         # print(images)
         # print(masks)
-        loss = criterion(outputs, masks[0])
+        loss = criterion(outputs, masks)
         optimizer.zero_grad()
         loss.backward()
         optimizer.stop()
@@ -130,10 +133,10 @@ def train_model(model, train_loader, criterion, optimizer, device):
 
 
 def generate_datasets(train_root, val_root, trg_transforms, val_transforms):
-    train_img_path = os.path.join(train_root, "tissue_image")
-    train_annot_path = os.path.join(train_root, "annotations")
-    train_mask_path = os.path.join(train_root, "masks")
-    val_img_path = os.path.join(val_root, "tissue_image")
+    train_img_path = os.path.join(train_root, "MoNuSegTrainData//tissue_image")
+    train_annot_path = os.path.join(train_root, "MoNuSegTrainData//annotations")
+    train_mask_path = os.path.join(train_root, "MoNuSegTrainData//masks")
+    val_img_path = os.path.join(val_root, "MoNuSegTestData//tissue_image")
     val_annot_path = os.path.join(val_root, "annotations")
     val_mask_path = os.path.join(val_root, "masks")
     train_dataset = ImageSegmentationDataset(train_img_path, train_annot_path, train_mask_path, trg_transforms)
@@ -145,13 +148,17 @@ def generate_datasets(train_root, val_root, trg_transforms, val_transforms):
 
 if __name__ == "__main__":
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    train_root = "MoNuSegTrainData"
-    val_root = "MoNuSegTestData"
-    model = fcn_resnet50(weights=FCN_ResNet50_Weights)
+    # train_root = "MoNuSegTrainData"
+    # val_root = "MoNuSegTestData"
+    # model = fcn_resnet50(weights=FCN_ResNet50_Weights)
+
+    # Pre-trained U-net
+    model = segmentation.deeplabv3_resnet50(pretrained=True, progress=True)
 
     # train_img_path = "MonuSeg_Train\\tissue_image"
     # annot_path = "MoNuSeg_Train\\annotations"
     # mask_path = "MoNuSeg_Train\\masks"
+
     train_dataset, val_dataset = generate_datasets(train_root, val_root, trg_transforms1, val_transforms1)
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
