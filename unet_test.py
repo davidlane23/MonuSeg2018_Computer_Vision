@@ -10,6 +10,11 @@ from PIL import Image, ImageDraw
 from torch.utils.data import DataLoader
 import torchvision
 from other_unet.unet_model import UNetSegmentationModel
+import warnings
+warnings.filterwarnings("ignore")
+# from torchmetrics import JaccardIndex
+from torchmetrics.classification import BinaryJaccardIndex
+
 # from UNET import UNetSegmentationModel
 
 # Define the U-Net model for segmentation
@@ -67,21 +72,28 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         mask = cv2.imread(masks, cv2.IMREAD_GRAYSCALE)
 
+
+
         # Normalize the images
         img_mean,img_std = img.mean(),img.std()
         img = (img-img_mean)/img_std
 
+        # mask_mean,mask_std = mask.mean(),mask.std()
+        # mask = (mask-mask_mean)/mask_std
+
+        # Binarize mask truth labels for black and white pixels
+        # mask = np.float32(mask)
         mask[mask <= 0] = 0
         mask[mask > 0] = 255
 
-        # Resize the mask to match the output size of the model
-        resize_transform = transforms.Compose([transforms.Resize((128, 128)), transforms.ToTensor()])
-        mask = resize_transform(Image.fromarray(mask))
 
         img = Image.fromarray(img.astype('uint8'))
         if self.transform is not None:
             img = self.transform(img)
-
+            # Resize the mask to match the output size of the model
+            resize_transform = transforms.Compose([transforms.Resize((128, 128),interpolation=Image.NEAREST), transforms.ToTensor()])
+            mask = resize_transform(Image.fromarray(mask))
+        # print(mask)
         return img, mask
 
 trg_transforms1 = transforms.Compose([
@@ -104,14 +116,16 @@ def train_modelcv(dataloader_cvtrain, dataloader_cvval, model, criterion, optimi
     best_loss = 100000
     val_losses = []
     train_losses = []
+    mean_IOU = []
     best_val_loss = 10000
     for epoch in range(num_epochs):
         print(f'------------------------CURRENT EPOCH: {epoch+1}--------------------------')
         train_loss = train_model(model,dataloader_cvtrain,criterion,optimizer,device)
-        val_loss = evaluate(model,dataloader_cvval,loss_crit,device)
+        val_loss,epoch_iou = evaluate(model,dataloader_cvval,loss_crit,device)
         # Get the train and val losses
         train_losses.append(train_loss)
         val_losses.append(val_loss)
+        mean_IOU.append(epoch_iou)
         if(best_val_loss > val_loss):
             best_epoch = epoch
             best_val_loss = val_loss
@@ -120,27 +134,38 @@ def train_modelcv(dataloader_cvtrain, dataloader_cvval, model, criterion, optimi
             print(f"Current best Epoch: {epoch+1}, Val Loss at Epoch: {val_loss}")
         print(f"Epoch {epoch+1} Val Loss: {val_loss}")
         print(f"Epoch {epoch+1} Train Loss: {train_loss}")
-    return train_losses,val_losses,best_epoch,bestweights
+    return train_losses,val_losses,best_epoch,bestweights,mean_IOU
 
 def evaluate(model, dataloader, criterion, device):
     model.eval()
     datasize = 0
     accuracy = 0
     avgloss = 0
-    idx = 0
+    dice_loss = 0
+    mean_iou = 0
+    # Calculate mean IOU using torchvision Metrics JaccardIndex
+    jaccard = BinaryJaccardIndex(threshold=0.35).to(device)
     with torch.no_grad():
         for inputs,masks in dataloader:
             inputs = inputs.to(device)
+
+            masks[masks <= 0.65] = 0
+            masks[masks > 0.65] = 1
+
             masks = masks.to(device)
             outputs = model(inputs)
             outputs = torch.sigmoid(outputs)
+            print(jaccard(outputs,masks).item())
+            mean_iou += jaccard(outputs, masks).item()
+            # Convert output to binarized predicted mask
             outputs[outputs <= 0.65] = 0
-            outputs[outputs > 0.65] = 255
-            # print(outputs)
+            outputs[outputs > 0.65] = 1
+
+            # get the IoU of each sample
+
             if criterion is not None:
                 curloss = criterion(outputs, masks)
                 avgloss = (avgloss * datasize + curloss)  / (datasize + inputs.shape[0])
-            # accuracy = (accuracy * datasize + torch.sum(preds == labels_idx)) / (datasize + inputs.shape[0])
             datasize += inputs.shape[0]
             # get probabilities
             # out_tensor = torch.argmax(outputs, 0)
@@ -149,7 +174,10 @@ def evaluate(model, dataloader, criterion, device):
             # for i in outputs:
             #     torchvision.transforms.ToPILImage()(i.type(torch.uint8)).convert('RGB').show()
             # preds = torch.argmax(softmax_pred, dim=1).data
-    return avgloss
+    # divide by number of samples in batch
+    mean_iou = mean_iou/len(inputs)
+    print("Mean IOU of epoch: ", mean_iou)
+    return avgloss,mean_iou
 
 def train_model(model, train_loader, criterion, optimizer, device):
     model.train()
@@ -165,6 +193,7 @@ def train_model(model, train_loader, criterion, optimizer, device):
         optimizer.step()
         avg_loss = (avg_loss * data_size + loss.item()) / (data_size + images.size(0))
         data_size += images.size(0)
+
     return avg_loss
 def compute_dice_loss(input, target):
     smooth = 1.
@@ -207,7 +236,12 @@ if __name__ == "__main__":
         "val": val_loader
     }
 
-    lr_list = [0.001]
+    best_hyperparameter = None
+    weights_chosen = None
+    bestmeasure = None
+    best_model_epoch = None
+
+    lr_list = [0.001,0.01]
     # weighted_loss = torch.tensor([0.1, 0.9])
 
     for lr in lr_list:
@@ -218,35 +252,40 @@ if __name__ == "__main__":
         # loss_crit = compute_dice_loss()
         # loss_crit = compute_dice_loss()
 
-        best_hyperparameter = None
-        weights_chosen = None
-        bestmeasure = None
-        best_epoch = None
-
-        train_losses, val_losses, best_epoch,weights_chosen = train_modelcv( \
+        train_losses, val_losses, best_epoch,weights_chosen,mean_iou = train_modelcv( \
             model=model,
             dataloader_cvtrain=dataloaders['train'],
             dataloader_cvval=dataloaders['val'],
             criterion=loss_crit,
             scheduler=None,
             optimizer=optimizer,
-            num_epochs=10,
+            num_epochs=20,
             device=device
         )
-        model.load_state_dict(weights_chosen)
-        test_img = Image.open("MoNuSegTestData\\tissue_image\\TCGA-44-2665-01B-06-BS6.tif").convert('RGB')
-        test_img = torchvision.transforms.ToTensor()(test_img)
-        test_img = torchvision.transforms.Resize(256)(test_img)
-        test_img = test_img.to(device)
+        mean_iou = sum(mean_iou)/len(mean_iou)
+        if(bestmeasure == None):
+            best_hyperparameter = lr
+            bestmeasure = mean_iou
+            bestweights = weights_chosen
+            best_model_epoch = best_epoch
+        else:
+            if(mean_iou >= bestmeasure):
+                best_hyperparameter = lr
+                bestmeasure = mean_iou
+                bestweights = weights_chosen
+                best_model_epoch = best_epoch
 
+    print(f"Model Chosen: Best LR:{best_hyperparameter},best mIOU: {bestmeasure},best model epoch {best_model_epoch}")
+    # Testing
+    model.load_state_dict(bestweights)
+    test_img = Image.open("MoNuSegTestData\\tissue_image\\TCGA-44-2665-01B-06-BS6.tif").convert('RGB')
+    test_img = torchvision.transforms.ToTensor()(test_img)
+    test_img = torchvision.transforms.Resize(256)(test_img)
+    test_img = test_img.to(device)
 
-        output = model(test_img.unsqueeze(0))
-        print(type(output))
-        print(output)
-        output = output.squeeze(0)
-        # output = output.detach().cpu().numpy()
-        output_img = torchvision.transforms.ToPILImage()(output.type(torch.uint8)).convert('RGB').show()
-        # output_img.show()
-
+    # Testint purpose to see if able to get proper segmentation mask
+    output = model(test_img.unsqueeze(0))
+    output = output.squeeze(0)
+    output_img = torchvision.transforms.ToPILImage()(output.type(torch.uint8)).convert('RGB').show()
 
         # print(avg_loss)
