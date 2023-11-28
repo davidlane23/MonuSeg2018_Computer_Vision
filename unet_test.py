@@ -13,7 +13,7 @@ from other_unet.unet_model import UNetSegmentationModel
 import warnings
 warnings.filterwarnings("ignore")
 # from torchmetrics import JaccardIndex
-from torchmetrics.classification import BinaryJaccardIndex
+from torchmetrics.classification import BinaryJaccardIndex,JaccardIndex
 
 # from UNET import UNetSegmentationModel
 
@@ -116,7 +116,7 @@ def train_modelcv(dataloader_cvtrain, dataloader_cvval, model, criterion, optimi
     best_loss = 100000
     val_losses = []
     train_losses = []
-    mean_IOU = []
+    best_IOU = 0.0
     best_val_loss = 10000
     for epoch in range(num_epochs):
         print(f'------------------------CURRENT EPOCH: {epoch+1}--------------------------')
@@ -129,6 +129,7 @@ def train_modelcv(dataloader_cvtrain, dataloader_cvval, model, criterion, optimi
         if(best_val_loss > val_loss):
             best_epoch = epoch
             best_val_loss = val_loss
+            best_IOU = epoch_iou
             # best_dice_loss = dice_loss
             bestweights = model.state_dict()
             print(f"Current best Epoch: {epoch+1}, Val Loss at Epoch: {val_loss}")
@@ -142,9 +143,10 @@ def evaluate(model, dataloader, criterion, device):
     accuracy = 0
     avgloss = 0
     dice_loss = 0
-    mean_iou = 0
+    mean_iou = []
     # Calculate mean IOU using torchvision Metrics JaccardIndex
-    jaccard = BinaryJaccardIndex(threshold=0.35).to(device)
+    jaccard = JaccardIndex(task='binary',num_classes=2,ignore_index=0).to(device)
+    # jaccard = BinaryJaccardIndex(threshold=0.35).to(device)
     with torch.no_grad():
         for inputs,masks in dataloader:
             inputs = inputs.to(device)
@@ -155,8 +157,7 @@ def evaluate(model, dataloader, criterion, device):
             masks = masks.to(device)
             outputs = model(inputs)
             outputs = torch.sigmoid(outputs)
-            print(jaccard(outputs,masks).item())
-            mean_iou += jaccard(outputs, masks).item()
+            mean_iou.append(jaccard(outputs, masks).item())
             # Convert output to binarized predicted mask
             outputs[outputs <= 0.65] = 0
             outputs[outputs > 0.65] = 1
@@ -175,7 +176,7 @@ def evaluate(model, dataloader, criterion, device):
             #     torchvision.transforms.ToPILImage()(i.type(torch.uint8)).convert('RGB').show()
             # preds = torch.argmax(softmax_pred, dim=1).data
     # divide by number of samples in batch
-    mean_iou = mean_iou/len(inputs)
+    mean_iou = sum(mean_iou)/len(mean_iou)
     print("Mean IOU of epoch: ", mean_iou)
     return avgloss,mean_iou
 
@@ -262,7 +263,7 @@ if __name__ == "__main__":
             num_epochs=20,
             device=device
         )
-        mean_iou = sum(mean_iou)/len(mean_iou)
+        # Measure chosen for determining best model: Mean IOU (Jaccard Index)
         if(bestmeasure == None):
             best_hyperparameter = lr
             bestmeasure = mean_iou
@@ -275,7 +276,7 @@ if __name__ == "__main__":
                 bestweights = weights_chosen
                 best_model_epoch = best_epoch
 
-    print(f"Model Chosen: Best LR:{best_hyperparameter},best mIOU: {bestmeasure},best model epoch {best_model_epoch}")
+    print(f"Model Chosen: Best LR:{best_hyperparameter},Best mIOU: {bestmeasure},Best model epoch {best_model_epoch}")
     # Testing
     model.load_state_dict(bestweights)
     test_img = Image.open("MoNuSegTestData\\tissue_image\\TCGA-44-2665-01B-06-BS6.tif").convert('RGB')
