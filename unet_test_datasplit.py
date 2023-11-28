@@ -14,9 +14,7 @@ import torchvision
 from other_unet.unet_model import UNetSegmentationModel
 
 # Set random seed for reproducibility
-seed = 42
-np.random.seed(seed)
-torch.manual_seed(seed)
+state = 42
 
 
 # from UNET import UNetSegmentationModel
@@ -201,7 +199,7 @@ def map_files_to_tissue_types(directory_path, tissue_types):
     return file_tissue_mapping
 
 
-def split_data(file_tissue_mapping, seed=42):
+def split_data(file_tissue_mapping, seed=state):
     # Get a list of all file names and tissue types
     file_names = list(file_tissue_mapping.keys())
     tissue_types = list(file_tissue_mapping.values())
@@ -222,14 +220,10 @@ def split_data(file_tissue_mapping, seed=42):
     # Remove val data from train data
     train_data = [file_name for file_name in train_data if file_name not in val_data]
 
-    print("Train Data", len(train_data))
-    print("Val Data", len(val_data))
-    print("Test Data", len(test_data))
-
     return train_data, val_data, test_data
 
 
-def generate_datasets(train_root, val_root, trg_transforms, val_transforms):
+def generate_datasets(train_root, trg_transforms, val_transforms):
     # Print out all file names in tissue_image
     tissue_image_dir = os.path.join(train_root, "tissue_image")
     all_tissue_images = os.listdir(tissue_image_dir)
@@ -237,9 +231,6 @@ def generate_datasets(train_root, val_root, trg_transforms, val_transforms):
     # print("All file names in tissue_image:")
     # for img_name in all_tissue_images:
     #     print(img_name)
-
-    # File paths = All the files in the directory /tissue_image
-    file_paths = []
 
     tissue_types = [
         'Liver',  # TCGA-18-5592-01Z-00-DX1.tif
@@ -288,41 +279,73 @@ def generate_datasets(train_root, val_root, trg_transforms, val_transforms):
     print(tissue_type_count)
 
     directory_path = 'MoNuSegTrainData\\tissue_image'
+    directory_path_annot = 'MoNuSegTrainData\\annotations'
     file_tissue_mapping = map_files_to_tissue_types(directory_path, tissue_types)
 
-    print("File-to-Tissue-Type Mapping:")
-    for file_name, tissue_type in file_tissue_mapping.items():
-        print(f"{file_name}: {tissue_type}")
-
-    # Split data
+    # Split data into train val and test
     train_data, val_data, test_data = split_data(file_tissue_mapping)
 
-    new_train_img_path = os.path.join(train_root, "new_tissue_image")
+    # Ensure data is split properly
+    print("Train Data", len(train_data))
+    print("Val Data", len(val_data))
+    print("Test Data", len(test_data))
+
+    # Define new folders to store train and val data
+    new_train_img_path = os.path.join(train_root, "train_tissue_image")
+    new_train_annot_path = os.path.join(train_root, "train_tissue_annot")
+    new_val_img_path = os.path.join(train_root, "val_tissue_image")
+    new_val_annot_path = os.path.join(train_root, "val_tissue_annot")
+
+    new_train_mask_path = os.path.join(train_root, "train_tissue_mask")
+    new_val_mask_path = os.path.join(train_root, "val_tissue_mask")
+
+    # Create these folders
     os.makedirs(new_train_img_path, exist_ok=True)
+    os.makedirs(new_train_annot_path, exist_ok=True)
+    os.makedirs(new_val_img_path, exist_ok=True)
+    os.makedirs(new_val_annot_path, exist_ok=True)
+    os.makedirs(new_train_mask_path, exist_ok=True)
+    os.makedirs(new_val_mask_path, exist_ok=True)
 
-    train_img_path = os.path.join(train_root, "tissue_image")
-    train_data_path_mapping = {file_name: os.path.join(train_img_path, file_name) for file_name in train_data}
-    # stop here
+    # Loop through the train_data and move files into image and annot folders
+    for file_name in train_data:
+        # Construct the full path to the source file
+        source_path = os.path.join(directory_path, file_name)
 
-    train_annot_path = os.path.join(train_root, "annotations")
-    train_mask_path = os.path.join(train_root, "masks")
+        # Construct the full path to the destination file
+        destination_path_train = os.path.join(new_train_img_path, file_name)
+        source_xml_path = os.path.join(directory_path_annot, f"{os.path.splitext(file_name)[0]}.xml")
 
-    val_img_path = os.path.join(val_root, "tissue_image")
-    valid_data_path_mapping = {file_name: os.path.join(val_img_path, file_name) for file_name in train_data}
+        # Construct the full path to the destination XML file
+        destination_xml_path_train = os.path.join(new_train_annot_path, f"{os.path.splitext(file_name)[0]}.xml")
 
-    val_annot_path = os.path.join(val_root, "annotations")
-    val_mask_path = os.path.join(val_root, "masks")
+        # Move the file to the new directory
+        shutil.copy(source_path, destination_path_train)
+        shutil.copy(source_xml_path, destination_xml_path_train)
+
+    # Loop through the val_data and move files into image and annot folders
+    for file_name in val_data:
+        # Construct the full path to the source file
+        source_path = os.path.join(directory_path, file_name)
+
+        # Construct the full path to the destination file
+        destination_path = os.path.join(new_val_img_path, file_name)
+        source_xml_path = os.path.join(directory_path_annot, f"{os.path.splitext(file_name)[0]}.xml")
+
+        # Construct the full path to the destination XML file
+        destination_xml_path_train = os.path.join(new_val_annot_path, f"{os.path.splitext(file_name)[0]}.xml")
+
+        # Move the file to the new directory
+        shutil.copy(source_path, destination_path)
+        shutil.copy(source_xml_path, destination_xml_path_train)
 
     # Define paths for masks in both training and validation datasets
-    train_mask_path = os.path.join(train_root, "masks")
-    val_mask_path = os.path.join(val_root, "masks")
 
-    train_dataset = ImageSegmentationDataset(train_data_path_mapping, train_annot_path, train_mask_path, trg_transforms)
-
+    train_dataset = ImageSegmentationDataset(new_train_img_path, new_train_annot_path, new_train_mask_path, trg_transforms)
     train_dataset.generate_masks()
-    val_dataset = ImageSegmentationDataset(valid_data_path_mapping, val_annot_path, val_mask_path, val_transforms)
-
+    val_dataset = ImageSegmentationDataset(new_val_img_path, new_val_annot_path, new_val_mask_path, val_transforms)
     val_dataset.generate_masks()
+
     # Return both datasets
     return train_dataset, val_dataset
 
@@ -330,15 +353,15 @@ def generate_datasets(train_root, val_root, trg_transforms, val_transforms):
 if __name__ == "__main__":
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     train_root = "MonuSegTrainData"
-    val_root = "MonuSegTestData"
+    # val_root = "MonuSegTestData"
 
     # Instantiate the U-Net segmentation model
     model = UNetSegmentationModel(in_channels=3, out_channels=1)
     model.to(device)
 
-    train_dataset, val_dataset = generate_datasets(train_root, val_root, trg_transforms1, val_transforms1)
+    train_dataset, val_dataset = generate_datasets(train_root, trg_transforms1, val_transforms1)
     train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=16, shuffle=True, num_workers=4)
     dataloaders = {
         "train": train_loader,
         "val": val_loader
