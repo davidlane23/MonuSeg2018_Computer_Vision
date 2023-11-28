@@ -11,15 +11,17 @@ from torch.utils.data import DataLoader
 import torchvision
 from other_unet.unet_model import UNetSegmentationModel
 import warnings
+from iou_Evaluator import IOU_Evaluator
 warnings.filterwarnings("ignore")
 # from torchmetrics import JaccardIndex
 from torchmetrics.classification import BinaryJaccardIndex,JaccardIndex
 
 # from UNET import UNetSegmentationModel
 
+
+
+
 # Define the U-Net model for segmentation
-
-
 class ImageSegmentationDataset(torch.utils.data.Dataset):
     def __init__(self, img_path, annot_path, mask_path, transforms):
         self.transform = transforms
@@ -98,19 +100,19 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
 
 trg_transforms1 = transforms.Compose([
     transforms.Resize(128),
-    # transforms.RandomCrop(250),
+    # transforms.RandomCrop(128),
     transforms.ToTensor(),
     # transforms.Normalize(mean = [1/255],std=[1/255])
 ])
 
 val_transforms1 = transforms.Compose([
     transforms.Resize(128),
-    # transforms.CenterCrop(250),
+    # transforms.CenterCrop(128),
     transforms.ToTensor(),
     # transforms.Normalize(mean = [1/255],std=[1/255])
 ])
 
-def train_modelcv(dataloader_cvtrain, dataloader_cvval, model, criterion, optimizer, scheduler, num_epochs, device):
+def train_modelcv(dataloader_cvtrain, dataloader_cvval, model, criterion, optimizer, scheduler, num_epochs, device,iou_eval):
     best_measure = 0
     best_epoch = -1
     best_loss = 100000
@@ -125,27 +127,27 @@ def train_modelcv(dataloader_cvtrain, dataloader_cvval, model, criterion, optimi
         # Get the train and val losses
         train_losses.append(train_loss)
         val_losses.append(val_loss)
-        mean_IOU.append(epoch_iou)
-        if(best_val_loss > val_loss):
+        # reset the mean IOU for each epoch for new calculation
+        iou_eval.reset()
+        # use meanIOU as the best measure
+        if(best_IOU < epoch_iou):
+        # if(best_val_loss > val_loss):
             best_epoch = epoch
             best_val_loss = val_loss
             best_IOU = epoch_iou
-            # best_dice_loss = dice_loss
             bestweights = model.state_dict()
             print(f"Current best Epoch: {epoch+1}, Val Loss at Epoch: {val_loss}")
         print(f"Epoch {epoch+1} Val Loss: {val_loss}")
         print(f"Epoch {epoch+1} Train Loss: {train_loss}")
-    return train_losses,val_losses,best_epoch,bestweights,mean_IOU
+    return train_losses,val_losses,best_epoch,bestweights,best_IOU
 
 def evaluate(model, dataloader, criterion, device):
     model.eval()
     datasize = 0
-    accuracy = 0
     avgloss = 0
-    dice_loss = 0
     mean_iou = []
     # Calculate mean IOU using torchvision Metrics JaccardIndex
-    jaccard = JaccardIndex(task='binary',num_classes=2,ignore_index=0).to(device)
+    jaccard = JaccardIndex(task='binary',num_classes=1,ignore_index=0).to(device)
     # jaccard = BinaryJaccardIndex(threshold=0.35).to(device)
     with torch.no_grad():
         for inputs,masks in dataloader:
@@ -157,26 +159,28 @@ def evaluate(model, dataloader, criterion, device):
             masks = masks.to(device)
             outputs = model(inputs)
             outputs = torch.sigmoid(outputs)
-            mean_iou.append(jaccard(outputs, masks).item())
+
+            # mean_iou.append(jaccard(outputs, masks).item())
             # Convert output to binarized predicted mask
             outputs[outputs <= 0.65] = 0
             outputs[outputs > 0.65] = 1
 
+            iou_evaluator.update(outputs,masks)
             # get the IoU of each sample
 
             if criterion is not None:
                 curloss = criterion(outputs, masks)
-                avgloss = (avgloss * datasize + curloss)  / (datasize + inputs.shape[0])
+                avgloss += curloss.item()
+                # avgloss = (avgloss * datasize + curloss)  / (datasize + inputs.shape[0])
             datasize += inputs.shape[0]
             # get probabilities
             # out_tensor = torch.argmax(outputs, 0)
             # normalized_masks = torch.log_softmax(out_tensor, dim=1)
             # print(out_tensor)
-            # for i in outputs:
-            #     torchvision.transforms.ToPILImage()(i.type(torch.uint8)).convert('RGB').show()
-            # preds = torch.argmax(softmax_pred, dim=1).data
+    avgloss /= datasize
     # divide by number of samples in batch
-    mean_iou = sum(mean_iou)/len(mean_iou)
+    mean_iou = iou_evaluator.getMeanIOU()
+    # mean_iou = sum(mean_iou)/len(mean_iou)
     print("Mean IOU of epoch: ", mean_iou)
     return avgloss,mean_iou
 
@@ -184,6 +188,7 @@ def train_model(model, train_loader, criterion, optimizer, device):
     model.train()
     data_size = 0
     avg_loss = 0
+
     for images, masks in train_loader:
         images, masks = images.to(device), masks.to(device)
         outputs = model(images)
@@ -225,10 +230,6 @@ if __name__ == "__main__":
     train_root = "MonuSegTrainData"
     val_root = "MonuSegTestData"
 
-    # Instantiate the U-Net segmentation model
-    model = UNetSegmentationModel(in_channels=3, out_channels=1)
-    model.to(device)
-
     train_dataset, val_dataset = generate_datasets(train_root, val_root, trg_transforms1, val_transforms1)
     train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=4)
@@ -243,16 +244,20 @@ if __name__ == "__main__":
     best_model_epoch = None
 
     lr_list = [0.001,0.01]
-    # weighted_loss = torch.tensor([0.1, 0.9])
 
     for lr in lr_list:
+        iou_evaluator = IOU_Evaluator(num_classes=1)
+        # Instantiate the U-Net segmentation model
+        # Finetune the last layer of the model to output only 2 classes, either background class or cell
+        model = UNetSegmentationModel(in_channels=3, out_channels=1)
+        model.to(device)
+        # apply pos weight to make positive class more important as image is imbalanced to background classes
+        pos_weight = torch.tensor([3.0]).to(device)
         print("##################### NEW RUN ###########################")
-        optimizer = optim.RMSprop(model.parameters(), lr=lr)
-
-        loss_crit = torch.nn.BCEWithLogitsLoss(reduction='mean')
-        # loss_crit = compute_dice_loss()
-        # loss_crit = compute_dice_loss()
-
+        # optimizer = optim.RMSprop(model.parameters(), lr=lr)
+        optimizer = optim.Adam(model.parameters(),lr=lr)
+        # loss_crit = torch.nn.BCEWithLogitsLoss(reduction='mean',pos_weight=pos_weight)
+        loss_crit = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
         train_losses, val_losses, best_epoch,weights_chosen,mean_iou = train_modelcv( \
             model=model,
             dataloader_cvtrain=dataloaders['train'],
@@ -261,6 +266,7 @@ if __name__ == "__main__":
             scheduler=None,
             optimizer=optimizer,
             num_epochs=20,
+            iou_eval = iou_evaluator,
             device=device
         )
         # Measure chosen for determining best model: Mean IOU (Jaccard Index)
