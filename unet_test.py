@@ -18,90 +18,13 @@ from iou_Evaluator import IOU_Evaluator
 warnings.filterwarnings("ignore")
 # from torchmetrics import JaccardIndex
 from torchmetrics.classification import BinaryJaccardIndex, JaccardIndex
+from ImageSegmentationDataset import ImageSegmentationDataset
+
 
 # Set random seed for reproducibility
 state = 42
 
-
 # from UNET import UNetSegmentationModel
-
-
-# Define the U-Net model for segmentation
-class ImageSegmentationDataset(torch.utils.data.Dataset):
-    def __init__(self, img_path, annot_path, mask_path, transforms):
-        self.transform = transforms
-        self.img_path = img_path
-        self.annotations_path = annot_path
-        self.masks_path = mask_path
-
-        self.img_list = []
-        self.annotations_list = []
-        self.masks_list = []
-        for img in os.listdir(img_path):
-            self.img_list.append(os.path.join(img_path, img))
-        for annot in os.listdir(self.annotations_path):
-            self.annotations_list.append(os.path.join(annot_path, annot))
-
-    def generate_masks(self):
-        if os.listdir(self.masks_path) == []:
-            annot_path = self.annotations_path
-            for annot in os.listdir(annot_path):
-                if annot == "desktop.ini":
-                    pass
-                else:
-                    tree = et.parse(os.path.join(annot_path, annot))
-                    root = tree.getroot()
-                    mask_list = []
-                    img_size = (1000, 1000)
-                    masked_image = Image.new("LA", img_size, color=(0, 0))
-                    for region in root.findall(".//Region"):
-                        vertices = region.findall(".//Vertex")
-                        mask = [(float(vertex.get("X")), float(vertex.get("Y"))) for vertex in vertices]
-                        mask_list.append(mask)
-                    for mask in mask_list:
-                        draw = ImageDraw.Draw(masked_image)
-                        draw.polygon(mask, fill=(255, 255))
-                    image_array = np.array(masked_image)
-                    masked_image.save(f'{self.masks_path}\\{annot[:-4]}.png')
-                    self.masks_list.append(f'{self.masks_path}\\{annot[:-4]}.png')
-        else:
-            mask_path = self.masks_path
-            for mask in os.listdir(mask_path):
-                self.masks_list.append(os.path.join(mask_path, mask))
-
-    def __len__(self):
-        return len(self.img_list)
-
-    def __getitem__(self, idx):
-        img_path = self.img_list[idx]
-        masks = self.masks_list[idx]
-        img = cv2.imread(img_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(masks, cv2.IMREAD_GRAYSCALE)
-
-        # Normalize the images
-        img_mean, img_std = img.mean(), img.std()
-        img = (img - img_mean) / img_std
-
-        # mask_mean,mask_std = mask.mean(),mask.std()
-        # mask = (mask-mask_mean)/mask_std
-
-        # Binarize mask truth labels for black and white pixels
-        # mask = np.float32(mask)
-        mask[mask <= 0] = 0
-        mask[mask > 0] = 255
-
-        img = Image.fromarray(img.astype('uint8'))
-        if self.transform is not None:
-            img = self.transform(img)
-            # Resize the mask to match the output size of the model
-            resize_transform = transforms.Compose(
-                [transforms.Resize((128, 128), interpolation=Image.NEAREST), transforms.ToTensor()])
-            mask = resize_transform(Image.fromarray(mask))
-        # print(mask)
-        return img, mask
-
-
 trg_transforms1 = transforms.Compose([
     transforms.Resize(128),
     # transforms.RandomCrop(128),
@@ -471,8 +394,12 @@ if __name__ == "__main__":
                 best_model_epoch = best_epoch
 
     print(f"Model Chosen: Best LR:{best_hyperparameter},Best mIOU: {bestmeasure},Best model epoch {best_model_epoch}")
-    # Testing
-    model.load_state_dict(bestweights)
+    torch.save(bestweights, 'model\\best_model.pth')
+    # Testing Phase-----------------------------------
+    checkpoint = torch.load(f'model\\best_model.pth', map_location=device)
+    model = UNetSegmentationModel(in_channels=3, out_channels=1)
+    model.load_state_dict(checkpoint)
+    model.to(device)
     test_img = Image.open("MoNuSegTestData\\tissue_image\\TCGA-44-2665-01B-06-BS6.tif").convert('RGB')
     test_img = torchvision.transforms.ToTensor()(test_img)
     test_img = torchvision.transforms.Resize(256)(test_img)
@@ -482,5 +409,3 @@ if __name__ == "__main__":
     output = model(test_img.unsqueeze(0))
     output = output.squeeze(0)
     output_img = torchvision.transforms.ToPILImage()(output.type(torch.uint8)).convert('RGB').show()
-
-    # print(avg_loss)
