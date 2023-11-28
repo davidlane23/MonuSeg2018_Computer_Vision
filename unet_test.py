@@ -233,22 +233,22 @@ def map_files_to_tissue_types(directory_path, tissue_types):
 
 
 def split_data(file_tissue_mapping, seed=state):
+    # This function splits data into an estimated 0.7 , 0.15, 0.15
     # Get a list of all file names and tissue types
     file_names = list(file_tissue_mapping.keys())
-    tissue_types = list(file_tissue_mapping.values())
 
     # Split into training, validation, and test sets
-    train_data, test_data = train_test_split(file_names, test_size=3, random_state=seed)
+    train_data, test_data = train_test_split(file_names, test_size=5, random_state=seed)
 
     # Ensure 'Colon' files are in the test set
     colon_files = [file_name for file_name, tissue_type in file_tissue_mapping.items() if tissue_type == 'Colon']
-    test_data += colon_files[:2]
+    test_data += colon_files[:3]
 
-    # Remove 'Colon' files from the training set
+    # Remove 'Colon' files from the training and val set
     train_data = [file_name for file_name in train_data if file_name not in test_data]
 
-    # Select random files for validation
-    val_data = train_test_split(train_data, test_size=6, random_state=seed)[1]
+    # Select random files for validation (Further split test data)
+    val_data = train_test_split(train_data, test_size=8, random_state=seed)[1]
 
     # Remove val data from train data
     train_data = [file_name for file_name in train_data if file_name not in val_data]
@@ -256,53 +256,68 @@ def split_data(file_tissue_mapping, seed=state):
     return train_data, val_data, test_data
 
 
-def generate_datasets(train_root, trg_transforms, val_transforms):
+def generate_datasets(train_root, val_root, test_root, trg_transforms, val_transforms):
     # Print out all file names in tissue_image
-    tissue_image_dir = os.path.join(train_root, "tissue_image")
+    source_root = 'MoNuSegData'
+    tissue_image_dir = os.path.join(source_root, "tissue_image")
     all_tissue_images = os.listdir(tissue_image_dir)
 
-    # print("All file names in tissue_image:")
-    # for img_name in all_tissue_images:
-    #     print(img_name)
+    print("All file names in tissue_image:")
+    for img_name in all_tissue_images:
+        print(img_name)
 
     tissue_types = [
-        'Liver',  # TCGA-18-5592-01Z-00-DX1.tif
-        'Liver',  # TCGA-21-5784-01Z-00-DX1.tif
-        'Liver',  # TCGA-21-5786-01Z-00-DX1.tif
-        'Liver',  # TCGA-38-6178-01Z-00-DX1.tif
-        'Liver',  # TCGA-49-4488-01Z-00-DX1.tif
-        'Liver',  # TCGA-50-5931-01Z-00-DX1.tif
-        'Breast',  # TCGA-A7-A13E-01Z-00-DX1.tif
-        'Breast',  # TCGA-A7-A13F-01Z-00-DX1.tif
-        'Breast',  # TCGA-AR-A1AK-01Z-00-DX1.tif
-        'Breast',  # TCGA-AR-A1AS-01Z-00-DX1.tif
-        'Colon',  # TCGA-AY-A8YK-01A-01-TS1.tif
-        'Kidney',  # TCGA-B0-5698-01Z-00-DX1.tif
-        'Kidney',  # TCGA-B0-5710-01Z-00-DX1.tif
-        'Kidney',  # TCGA-B0-5711-01Z-00-DX1.tif
-        'Kidney',  # TCGA-BC-A217-01Z-00-DX1.tif
-        'Prostate',  # TCGA-CH-5767-01Z-00-DX1.tif
-        'Bladder',  # TCGA-DK-A2I6-01A-01-TS1.tif
-        'Liver',  # TCGA-E2-A14V-01Z-00-DX1.tif
-        'Liver',  # TCGA-E2-A1B5-01Z-00-DX1.tif
-        'Liver',  # TCGA-F9-A8NY-01Z-00-DX1.tif
-        'Liver',  # TCGA-FG-A87N-01Z-00-DX1.tif
-        'Bladder',  # TCGA-G2-A2EK-01A-02-TSB.tif
-        'Prostate',  # TCGA-G9-6336-01Z-00-DX1.tif
-        'Prostate',  # TCGA-G9-6348-01Z-00-DX1.tif
-        'Prostate',  # TCGA-G9-6356-01Z-00-DX1.tif
-        'Prostate',  # TCGA-G9-6362-01Z-00-DX1.tif
-        'Prostate',  # TCGA-G9-6363-01Z-00-DX1.tif
-        'Kidney',  # TCGA-HE-7128-01Z-00-DX1.tif
-        'Kidney',  # TCGA-HE-7129-01Z-00-DX1.tif
-        'Kidney',  # TCGA-HE-7130-01Z-00-DX1.tif
-        'Stomach',  # TCGA-KB-A93J-01A-01-TS1.tif
-        'Liver',  # TCGA-MH-A561-01Z-00-DX1.tif
-        'Colon',  # TCGA-NH-A8F7-01A-01-TS1.tif
-        'Stomach',  # TCGA-RD-A8N9-01A-01-TS1.tif
-        'Liver',  # TCGA-UZ-A9PJ-01Z-00-DX1.tif
-        'Liver',  # TCGA-UZ-A9PN-01Z-00-DX1.tif
-        'Liver'  # TCGA-XS-A8TJ-01Z-00-DX1.tif
+        'Liver',  # TCGA-18-5592-01Z-00-DX1.tif C
+        'Liver',  # TCGA-21-5784-01Z-00-DX1.tif C
+        'Liver',  # TCGA-21-5786-01Z-00-DX1.tif C
+        'Kidney',  # TCGA-2Z-A9J9-01A-01-TS1.tif C
+        'Liver',  # TCGA-38-6178-01Z-00-DX1.tif C
+        'Lung',  # TCGA-44-2665-01B-06-BS6.tif C
+        'Liver',  # TCGA-49-4488-01Z-00-DX1.tif C
+        'Liver',  # TCGA-50-5931-01Z-00-DX1.tif C
+        'Lung',  # TCGA-69-7764-01A-01-TS1.tif C
+        'Colon',  # TCGA-A6-6782-01A-01-BS1.tif C
+        'Breast',  # TCGA-A7-A13E-01Z-00-DX1.tif C
+        'Breast',  # TCGA-A7-A13F-01Z-00-DX1.tif C
+        'Breast',  # TCGA-AC-A2FO-01A-01-TS1.tif C
+        'Breast',  # TCGA-AO-A0J2-01A-01-BSA.tif C
+        'Breast',  # TCGA-AR-A1AK-01Z-00-DX1.tif C
+        'Breast',  # TCGA-AR-A1AS-01Z-00-DX1.tif C
+        'Colon',  # TCGA-AY-A8YK-01A-01-TS1.tif C
+        'Kidney',  # TCGA-B0-5698-01Z-00-DX1.tif C
+        'Kidney',  # TCGA-B0-5710-01Z-00-DX1.tif C
+        'Kidney',  # TCGA-B0-5711-01Z-00-DX1.tif C
+        'Unlabelled',  # TCGA-BC-A217-01Z-00-DX1.tif W
+        'Prostate',  # TCGA-CH-5767-01Z-00-DX1.tif C
+        'Bladder',  # TCGA-ZF-A9R5-01A-01-TS1.tif C
+        'Bladder',  # TCGA-DK-A2I6-01A-01-TS1.tif C
+        'Breast',  # TCGA-E2-A1B5-01Z-00-DX1.tif W
+        'Breast',  # # TCGA-E2-A14V-01Z-00-DX1.tif W
+        'Prostate',  # TCGA-EJ-A46H-01A-03-TSC.tif C
+        'Unlabelled',  # TCGA-F9-A8NY-01Z-00-DX1.tif W
+        'Brain',  # TCGA-FG-A4MU-01B-01-TS1.tif C
+        'Unlabelled',  # TCGA-FG-A87N-01Z-00-DX1.tif W
+        'Bladder',  # TCGA-G2-A2EK-01A-02-TSB.tif W
+        'Prostate',  # TCGA-G9-6336-01Z-00-DX1.tif C
+        'Prostate',  # TCGA-G9-6348-01Z-00-DX1.tif C
+        'Prostate',  # TCGA-G9-6356-01Z-00-DX1.tif C
+        'Prostate',  # TCGA-G9-6362-01Z-00-DX1.tif C
+        'Prostate',  # TCGA-G9-6363-01Z-00-DX1.tif C
+        'Kidney',  # TCGA-HT-8564-01Z-00-DX1.tif C
+        'Prostate',  # TCGA-IZ-8196-01A-01-BS1.tif C
+        'Kidney',  # TCGA-HE-7128-01Z-00-DX1.tif C
+        'Kidney',  # TCGA-HE-7129-01Z-00-DX1.tif C
+        'Kidney',  # TCGA-HE-7130-01Z-00-DX1.tif C
+        'Brain',  # TCGA-GL-6846-01A-01-BS1.tif C
+        'Kidney',  # TCGA-HC-7209-01A-01-TS1.tif C
+        'Stomach',  # TCGA-KB-A93J-01A-01-TS1.tif C
+        'Unlabelled',  # TCGA-MH-A561-01Z-00-DX1.tif W
+        'Colon',  # TCGA-NH-A8F7-01A-01-TS1.tif C
+        'Stomach',  # TCGA-RD-A8N9-01A-01-TS1.tif C
+        'Unlabelled',  # TCGA-UZ-A9PJ-01Z-00-DX1.tif W
+        'Unlabelled',  # TCGA-UZ-A9PN-01Z-00-DX1.tif W
+        'Unlabelled',  # TCGA-XS-A8TJ-01Z-00-DX1.tif W
+        'Bladder',  # TCGA-CU-A0YN-01A-02-BSB.tif C
     ]
 
     # Identify unique tissue types
@@ -311,8 +326,8 @@ def generate_datasets(train_root, trg_transforms, val_transforms):
     print(unique_tissue_types)
     print(tissue_type_count)
 
-    directory_path = 'MoNuSegTrainData\\tissue_image'
-    directory_path_annot = 'MoNuSegTrainData\\annotations'
+    directory_path = 'MoNuSegData\\tissue_image'
+    directory_path_annot = 'MoNuSegData\\annotations'
     file_tissue_mapping = map_files_to_tissue_types(directory_path, tissue_types)
 
     # Split data into train val and test
@@ -327,69 +342,83 @@ def generate_datasets(train_root, trg_transforms, val_transforms):
     new_train_img_path = os.path.join(train_root, "train_tissue_image")
     new_train_annot_path = os.path.join(train_root, "train_tissue_annot")
 
-    new_val_img_path = os.path.join(train_root, "val_tissue_image")
-    new_val_annot_path = os.path.join(train_root, "val_tissue_annot")
+    new_val_img_path = os.path.join(val_root, "val_tissue_image")
+    new_val_annot_path = os.path.join(val_root, "val_tissue_annot")
+
+    new_test_img_path = os.path.join(test_root, "test_tissue_image")
+    new_test_annot_path = os.path.join(test_root, "test_tissue_annot")
 
     new_train_mask_path = os.path.join(train_root, "train_tissue_mask")
-    new_val_mask_path = os.path.join(train_root, "val_tissue_mask")
+    new_val_mask_path = os.path.join(val_root, "val_tissue_mask")
+    new_test_mask_path = os.path.join(test_root, "test_tissue_mask")
 
     # Create these folders
     os.makedirs(new_train_img_path, exist_ok=True)
     os.makedirs(new_train_annot_path, exist_ok=True)
+
+    os.makedirs(new_test_img_path, exist_ok=True)
+    os.makedirs(new_test_annot_path, exist_ok=True)
+
     os.makedirs(new_val_img_path, exist_ok=True)
     os.makedirs(new_val_annot_path, exist_ok=True)
+
     os.makedirs(new_train_mask_path, exist_ok=True)
     os.makedirs(new_val_mask_path, exist_ok=True)
+    os.makedirs(new_test_mask_path, exist_ok=True)
 
-    # Loop through the train_data and move files into image and annot folders
-    for file_name in train_data:
-        # Construct the full path to the source file
-        source_path = os.path.join(directory_path, file_name)
+    # Define a dictionary to map data types to their corresponding destination paths
+    data_type_paths = {
+        'train': (new_train_img_path, new_train_annot_path),
+        'val': (new_val_img_path, new_val_annot_path),
+        'test': (new_test_img_path, new_test_annot_path)
+    }
 
-        # Construct the full path to the destination file
-        destination_path_train = os.path.join(new_train_img_path, file_name)
-        source_xml_path = os.path.join(directory_path_annot, f"{os.path.splitext(file_name)[0]}.xml")
+    # Loop through each data type (train, val, test)
+    for data_type, data_files in {'train': train_data, 'val': val_data, 'test': test_data}.items():
+        # Get the destination paths for the current data type
+        dest_img_path, dest_annot_path = data_type_paths[data_type]
 
-        # Construct the full path to the destination XML file
-        destination_xml_path_train = os.path.join(new_train_annot_path, f"{os.path.splitext(file_name)[0]}.xml")
+        # Loop through the data files and move them into image and annot folders
+        for file_name in data_files:
+            # Construct the full path to the source file
+            source_path = os.path.join(directory_path, file_name)
 
-        # Move the file to the new directory
-        shutil.copy(source_path, destination_path_train)
-        shutil.copy(source_xml_path, destination_xml_path_train)
+            # Construct the full path to the destination file
+            dest_path = os.path.join(dest_img_path, file_name)
+            source_xml_path = os.path.join(directory_path_annot, f"{os.path.splitext(file_name)[0]}.xml")
 
-    # Loop through the val_data and move files into image and annot folders
-    for file_name in val_data:
-        # Construct the full path to the source file
-        source_path = os.path.join(directory_path, file_name)
+            # Construct the full path to the destination XML file
+            dest_xml_path = os.path.join(dest_annot_path, f"{os.path.splitext(file_name)[0]}.xml")
 
-        # Construct the full path to the destination file
-        destination_path = os.path.join(new_val_img_path, file_name)
-        source_xml_path = os.path.join(directory_path_annot, f"{os.path.splitext(file_name)[0]}.xml")
-
-        # Construct the full path to the destination XML file
-        destination_xml_path_train = os.path.join(new_val_annot_path, f"{os.path.splitext(file_name)[0]}.xml")
-
-        # Move the file to the new directory
-        shutil.copy(source_path, destination_path)
-        shutil.copy(source_xml_path, destination_xml_path_train)
+            # Move the file to the new directory
+            shutil.copy(source_path, dest_path)
+            shutil.copy(source_xml_path, dest_xml_path)
 
     # Define paths for masks in both training and validation datasets
 
-    train_dataset = ImageSegmentationDataset(new_train_img_path, new_train_annot_path, new_train_mask_path, trg_transforms)
+    train_dataset = ImageSegmentationDataset(new_train_img_path, new_train_annot_path, new_train_mask_path,
+                                             trg_transforms)
     train_dataset.generate_masks()
+
     val_dataset = ImageSegmentationDataset(new_val_img_path, new_val_annot_path, new_val_mask_path, val_transforms)
     val_dataset.generate_masks()
 
+    test_dataset = ImageSegmentationDataset(new_test_img_path, new_test_annot_path, new_test_mask_path, val_transforms)
+    test_dataset.generate_masks()
+
     # Return both datasets
-    return train_dataset, val_dataset
+    return train_dataset, val_dataset, test_dataset
 
 
 if __name__ == "__main__":
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    train_root = "MonuSegTrainData"
-    # val_root = "MonuSegTestData"
+    train_root = "Train_Data"
+    val_root = "Val_Data"
+    test_root = "Test_Data"
 
-    train_dataset, val_dataset = generate_datasets(train_root, trg_transforms1, val_transforms1)
+    train_dataset, val_dataset, test_dataset = generate_datasets(train_root, val_root, test_root, trg_transforms1,
+                                                                 val_transforms1)
+
     train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=4)
     dataloaders = {
@@ -449,7 +478,7 @@ if __name__ == "__main__":
     test_img = torchvision.transforms.Resize(256)(test_img)
     test_img = test_img.to(device)
 
-    # Testint purpose to see if able to get proper segmentation mask
+    # Testint purpose to see if able to get proper segmentation mas     k
     output = model(test_img.unsqueeze(0))
     output = output.squeeze(0)
     output_img = torchvision.transforms.ToPILImage()(output.type(torch.uint8)).convert('RGB').show()
