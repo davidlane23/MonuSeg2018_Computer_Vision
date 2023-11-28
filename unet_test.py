@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 import torchvision
 from other_unet.unet_model import UNetSegmentationModel
 import warnings
+from pixelAccuracy_Evaluator import PixelAccuracyEvaluator
 from iou_Evaluator import IOU_Evaluator
 
 warnings.filterwarnings("ignore")
@@ -362,6 +363,10 @@ if __name__ == "__main__":
         # Finetune the last layer of the model to output only 2 classes, either background class or cell
         model = UNetSegmentationModel(in_channels=3, out_channels=1)
         model.to(device)
+
+        # Evaluate with pixel accuracy
+        pixel_accuracy_evaluator = PixelAccuracyEvaluator(model, val_loader, device)
+
         # apply pos weight to make positive class more important as image is imbalanced to background classes
         pos_weight = torch.tensor([3.0]).to(device)
         print("##################### NEW RUN ###########################")
@@ -392,6 +397,10 @@ if __name__ == "__main__":
                 bestmeasure = mean_iou
                 bestweights = weights_chosen
                 best_model_epoch = best_epoch
+
+        # Calculate pixel accuracy on the validation set
+        pixel_accuracy = pixel_accuracy_evaluator.calculate_pixel_accuracy()
+        print(f"Pixel Accuracy on Validation Set: {pixel_accuracy}")
 
     print(f"Model Chosen: Best LR:{best_hyperparameter},Best mIOU: {bestmeasure},Best model epoch {best_model_epoch}")
     torch.save(bestweights, 'model\\best_model.pth')
