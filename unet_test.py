@@ -411,10 +411,6 @@ if __name__ == "__main__":
                 bestweights = weights_chosen
                 best_model_epoch = best_epoch
 
-        # Calculate pixel accuracy on the validation set
-        pixel_accuracy = pixel_accuracy_evaluator.calculate_pixel_accuracy()
-        print(f"Pixel Accuracy on Validation Set: {pixel_accuracy}")
-
     print(f"Model Chosen: Best LR:{best_hyperparameter},Best mIOU: {bestmeasure},Best model epoch {best_model_epoch}")
     torch.save(bestweights, 'model\\best_model.pth')
     # Testing Phase-----------------------------------
