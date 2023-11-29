@@ -7,21 +7,15 @@ class PixelAccuracyEvaluator:
         self.dataloader = dataloader
         self.device = device
 
-    def calculate_pixel_accuracy(self):
-        self.model.eval()
+    def total_pixels(selfs, predictions, masks):
         correct_pixels = 0
         total_pixels = 0
 
-        with torch.no_grad():
-            for inputs, masks in self.dataloader:
-                inputs = inputs.to(self.device)
-                masks = masks.to(self.device)
+        correct_pixels += (predictions == masks).sum().item()
+        total_pixels += masks.numel()
 
-                outputs = self.model(inputs)
-                predictions = (outputs > 0.5).float()  # Assuming a threshold of 0.5 for binary segmentation
+        return correct_pixels, total_pixels  # Return the computed values
 
-                correct_pixels += (predictions == masks).sum().item()
-                total_pixels += masks.numel()
-
-        pixel_accuracy = correct_pixels / total_pixels
-        return pixel_accuracy
+    def get_pixel_accuracy(self, correct_pixels, total_pixels):
+        pixel_acc = correct_pixels / total_pixels
+        return pixel_acc

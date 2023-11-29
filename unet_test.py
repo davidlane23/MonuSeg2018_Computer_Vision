@@ -21,7 +21,6 @@ warnings.filterwarnings("ignore")
 from torchmetrics.classification import BinaryJaccardIndex, JaccardIndex
 from ImageSegmentationDataset import ImageSegmentationDataset
 
-
 # Set random seed for reproducibility
 state = 42
 
@@ -53,7 +52,7 @@ def train_modelcv(dataloader_cvtrain, dataloader_cvval, model, criterion, optimi
     for epoch in range(num_epochs):
         print(f'------------------------CURRENT EPOCH: {epoch + 1}--------------------------')
         train_loss = train_model(model, dataloader_cvtrain, criterion, optimizer, device)
-        val_loss, epoch_iou = evaluate(model, dataloader_cvval, loss_crit, device)
+        val_loss, epoch_iou, pixel_accuracy = evaluate(model, dataloader_cvval, loss_crit, device)
         # Get the train and val losses
         train_losses.append(train_loss)
         val_losses.append(val_loss)
@@ -69,6 +68,8 @@ def train_modelcv(dataloader_cvtrain, dataloader_cvval, model, criterion, optimi
             print(f"Current best Epoch: {epoch + 1}, Val Loss at Epoch: {val_loss}")
         print(f"Epoch {epoch + 1} Val Loss: {val_loss}")
         print(f"Epoch {epoch + 1} Train Loss: {train_loss}")
+        print(f"Epoch {epoch + 1} Pixel Acc: {pixel_accuracy}")
+
     return train_losses, val_losses, best_epoch, bestweights, best_IOU
 
 
@@ -77,6 +78,10 @@ def evaluate(model, dataloader, criterion, device):
     datasize = 0
     avgloss = 0
     mean_iou = []
+
+    correct_pixels = 0
+    total_pixels = 0
+
     # Calculate mean IOU using torchvision Metrics JaccardIndex
     jaccard = JaccardIndex(task='binary', num_classes=1, ignore_index=0).to(device)
     # jaccard = BinaryJaccardIndex(threshold=0.35).to(device)
@@ -89,6 +94,9 @@ def evaluate(model, dataloader, criterion, device):
 
             masks = masks.to(device)
             outputs = model(inputs)
+
+            predictions = (outputs > 0.5).float()  # Assuming a threshold of 0.5 for binary segmentation
+
             outputs = torch.sigmoid(outputs)
 
             # mean_iou.append(jaccard(outputs, masks).item())
@@ -96,8 +104,11 @@ def evaluate(model, dataloader, criterion, device):
             outputs[outputs <= 0.65] = 0
             outputs[outputs > 0.65] = 1
 
-            iou_evaluator.update(outputs, masks)
             # get the IoU of each sample
+            iou_evaluator.update(outputs, masks)
+
+            # get the correct and total number of pixels of each sample
+            correct_pixels, total_pixels = pixel_accuracy_evaluator.total_pixels(masks, predictions)
 
             if criterion is not None:
                 curloss = criterion(outputs, masks)
@@ -111,9 +122,11 @@ def evaluate(model, dataloader, criterion, device):
     avgloss /= datasize
     # divide by number of samples in batch
     mean_iou = iou_evaluator.getMeanIOU()
+    pixel_acc = pixel_accuracy_evaluator.get_pixel_accuracy(correct_pixels, total_pixels)
     # mean_iou = sum(mean_iou)/len(mean_iou)
     print("Mean IOU of epoch: ", mean_iou)
-    return avgloss, mean_iou
+    print("Pixel Accuracy: ", pixel_acc)
+    return avgloss, mean_iou, pixel_acc
 
 
 def train_model(model, train_loader, criterion, optimizer, device):
