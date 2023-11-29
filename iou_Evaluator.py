@@ -1,11 +1,14 @@
-import  torch
+import torch
+
 class IOU_Evaluator():
     def __init__(self,num_classes):
         self.num_classes = num_classes
         self.reset()
+
     def reset(self):
         self.intersection = torch.zeros(self.num_classes)
         self.union = torch.zeros(self.num_classes)
+
     def update(self,pred_mask,true_mask):
         for i in range(self.num_classes):
             pred_mask_i = (pred_mask == i)
@@ -23,6 +26,7 @@ class IOU_Evaluator():
             # apply epsilon to ensure no division over 0
             class_iou[i] = self.intersection[i]/self.union[i] + 2e-12
         return  class_iou
+
     def getMeanIOU(self):
         class_iou = self.compute_iou()
         # total iou / num class

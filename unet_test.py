@@ -250,8 +250,8 @@ def generate_datasets(train_root, val_root, test_root, trg_transforms, val_trans
     print(unique_tissue_types)
     print(tissue_type_count)
 
-    directory_path = 'MoNuSegData\\tissue_image'
-    directory_path_annot = 'MoNuSegData\\annotations'
+    directory_path = 'MoNuSegData/tissue_image'
+    directory_path_annot = 'MoNuSegData/annotations'
     file_tissue_mapping = map_files_to_tissue_types(directory_path, tissue_types)
 
     # Split data into train val and test
@@ -344,8 +344,8 @@ if __name__ == "__main__":
     train_dataset, val_dataset, test_dataset = generate_datasets(train_root, val_root, test_root, trg_transforms1,
                                                                  val_transforms1)
 
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
     dataloaders = {
         "train": train_loader,
         "val": val_loader
@@ -383,7 +383,7 @@ if __name__ == "__main__":
             criterion=loss_crit,
             scheduler=None,
             optimizer=optimizer,
-            num_epochs=20,
+            num_epochs=5,
             iou_eval=iou_evaluator,
             device=device
         )
@@ -406,13 +406,13 @@ if __name__ == "__main__":
         print(f"Pixel Accuracy on Validation Set: {pixel_accuracy}")
 
     print(f"Model Chosen: Best LR:{best_hyperparameter},Best mIOU: {bestmeasure},Best model epoch {best_model_epoch}")
-    torch.save(bestweights, 'model\\best_model.pth')
+    torch.save(bestweights, 'model/best_model.pth')
     # Testing Phase-----------------------------------
-    checkpoint = torch.load(f'model\\best_model.pth', map_location=device)
+    checkpoint = torch.load(f'model/best_model.pth', map_location=device)
     model = UNetSegmentationModel(in_channels=3, out_channels=1)
     model.load_state_dict(checkpoint)
     model.to(device)
-    test_img = Image.open("MoNuSegTestData\\tissue_image\\TCGA-44-2665-01B-06-BS6.tif").convert('RGB')
+    test_img = Image.open("MoNuSegTestData/tissue_image/TCGA-44-2665-01B-06-BS6.tif").convert('RGB')
     test_img = torchvision.transforms.ToTensor()(test_img)
     test_img = torchvision.transforms.Resize(256)(test_img)
     test_img = test_img.to(device)

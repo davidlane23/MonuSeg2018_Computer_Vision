@@ -41,12 +41,17 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
                         draw = ImageDraw.Draw(masked_image)
                         draw.polygon(mask, fill=(255, 255))
                     image_array = np.array(masked_image)
-                    masked_image.save(f'{self.masks_path}\\{annot[:-4]}.png')
-                    self.masks_list.append(f'{self.masks_path}\\{annot[:-4]}.png')
+                    masked_image.save(f'{self.masks_path}/{annot[:-4]}.png')
+                    self.masks_list.append(f'{self.masks_path}/{annot[:-4]}.png')
         else:
             mask_path = self.masks_path
             for mask in os.listdir(mask_path):
                 self.masks_list.append(os.path.join(mask_path, mask))
+
+        print("Masks generated")
+        print("Length of masks list: ", len(self.masks_list))
+        print("Length of images list: ", len(self.img_list))
+
 
     def __len__(self):
         return len(self.img_list)
