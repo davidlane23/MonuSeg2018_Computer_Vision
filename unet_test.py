@@ -336,14 +336,10 @@ def generate_datasets(train_root, val_root, test_root, trg_transforms, val_trans
 
 if __name__ == "__main__":
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-<<<<<<< HEAD
-    train_root = "data/MonuSegTrainData"
-    val_root = "data/MonuSegTestData"
-=======
+
     train_root = "Train_Data"
     val_root = "Val_Data"
     test_root = "Test_Data"
->>>>>>> origin/Isaac
 
     train_dataset, val_dataset, test_dataset = generate_datasets(train_root, val_root, test_root, trg_transforms1,
                                                                  val_transforms1)
