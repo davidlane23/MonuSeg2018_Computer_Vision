@@ -221,8 +221,8 @@ def generate_datasets(train_root, val_root, trg_transforms, val_transforms):
 
 if __name__ == "__main__":
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    train_root = "MonuSegTrainData"
-    val_root = "MonuSegTestData"
+    train_root = "data/MonuSegTrainData"
+    val_root = "data/MonuSegTestData"
 
     # Instantiate the U-Net segmentation model
     model = UNetSegmentationModel(in_channels=3, out_channels=1)
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     bestmeasure = None
     best_model_epoch = None
 
-    lr_list = [0.001,0.01]
+    lr_list = [0.001]
     # weighted_loss = torch.tensor([0.1, 0.9])
 
     for lr in lr_list:
@@ -259,7 +259,7 @@ if __name__ == "__main__":
             criterion=loss_crit,
             scheduler=None,
             optimizer=optimizer,
-            num_epochs=20,
+            num_epochs=10,
             device=device
         )
         mean_iou = sum(mean_iou)/len(mean_iou)
@@ -278,7 +278,7 @@ if __name__ == "__main__":
     print(f"Model Chosen: Best LR:{best_hyperparameter},best mIOU: {bestmeasure},best model epoch {best_model_epoch}")
     # Testing
     model.load_state_dict(bestweights)
-    test_img = Image.open("MoNuSegTestData\\tissue_image\\TCGA-44-2665-01B-06-BS6.tif").convert('RGB')
+    test_img = Image.open("data/MoNuSegTestData/tissue_image/TCGA-44-2665-01B-06-BS6.tif").convert('RGB')
     test_img = torchvision.transforms.ToTensor()(test_img)
     test_img = torchvision.transforms.Resize(256)(test_img)
     test_img = test_img.to(device)
