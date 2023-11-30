@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 
 from modules.MonuSeg_dataset import MonuSegDataset, generate_datasets
 from modules.MonuSeg_model import MonuSegModel
-from Model.unet_model import UNetSegmentationModel
+from model.unet_model import UNetSegmentationModel
 import warnings
 from config import *
 
