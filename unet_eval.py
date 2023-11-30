@@ -122,8 +122,8 @@ def run(data_path):
             else:
                 img_file = datasets['test'].img_list[idx]
 
-            pred_np = pred.numpy()
-            label_np = label.numpy()
+            pred_np = pred.cpu().numpy()
+            label_np = label.cpu().numpy()
             df = df._append({'ImageFile': img_file, 'Prediction': pred_np, 'GroundTruth': label_np,
                              }, ignore_index=True)
 
@@ -153,7 +153,7 @@ def run(data_path):
         print(f"{'Metric':<25} {'Value':<25}\n")
 
         for metric_name, metric_evaluator in metric_evaluators.items():
-            metric_value = metric_evaluator(predictions, ground_truth)
+            metric_value = metric_evaluator(predictions.cpu().numpy(), ground_truth.cpu().numpy())
 
             # Format the metric value based on the metric name
             formatted_value = f"{metric_value:.4f}" if metric_name != 'accuracy' else f"{metric_value:.2%}"
