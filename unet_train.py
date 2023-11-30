@@ -23,7 +23,7 @@ def run(data_path):
     batch_size = 1
     epochs = 10
     lrates = [0.01]
-    n_classes = 1
+    n_classes = 2
     in_channels = 3
     device = torch.device(
         "cuda") if torch.cuda.is_available() else torch.device("cpu")
