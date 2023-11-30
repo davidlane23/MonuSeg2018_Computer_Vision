@@ -4,6 +4,7 @@ import torch.nn as nn
 # from torchmetrics import JaccardIndex
 from torchmetrics.classification import BinaryJaccardIndex, JaccardIndex
 from .MonuSeg_evaluator import IOU_Evaluator
+from .MonuSeg_evaluator import PixelAccuracyEvaluator
 from sklearn.metrics import accuracy_score, jaccard_score
 
 
@@ -14,6 +15,7 @@ class MonuSegModel:
         self.device = device
         self.epochs = epochs
         self.iou_evaluator = IOU_Evaluator(num_classes=2)
+        self.pixAcc_evaluator = PixelAccuracyEvaluator(model,device)
         self.config_model(n_classes, weights)
         if lr is not None:
             self.optimizer = torch.optim.Adam(
@@ -55,7 +57,7 @@ class MonuSegModel:
             self.optimizer.step()  # apply new gradients to change model parameters
 
             avg_loss = (avg_loss * num_of_batches + loss) / \
-                (num_of_batches + 1)
+                       (num_of_batches + 1)
             epoch_losses.append(float(avg_loss))
 
             # update number of batches
@@ -91,9 +93,14 @@ class MonuSegModel:
                 outputs[outputs <= 0.65] = 0
                 outputs[outputs > 0.65] = 1
 
+                predictions = (outputs > 0.5).float()  # Assuming a threshold of 0.5 for binary segmentation
+
                 self.iou_evaluator.update(outputs, masks)
 
                 mean_iou = self.iou_evaluator.get_mean_iou()
+
+                # get the correct and total number of pixels of each sample
+                correct_pixels, total_pixels = self.pixAcc_evaluator.total_pixels(predictions=predictions, masks=masks)
 
                 # print("Mean iou: ", mean_iou)
 
@@ -102,7 +109,7 @@ class MonuSegModel:
                 #     (data_size + images.size(0))  # May be wrong
 
                 avg_loss = (avg_loss * num_of_batches + loss) / \
-                    (num_of_batches + 1)
+                           (num_of_batches + 1)
                 # avg_loss += loss.item()
                 # avg_accuracy = (avg_accuracy * data_size + mean_iou
                 #                 ) / (data_size + images.size(0))  # May be wrong
@@ -119,9 +126,12 @@ class MonuSegModel:
             # print(sum(jaccard_iou)/len(jaccard_iou))
             # avg_loss /= data_size
             mean_iou = self.iou_evaluator.get_mean_iou()
+            pixel_acc = self.pixAcc_evaluator.get_pixel_accuracy(correct_pixels=correct_pixels, total_pixels=
+            total_pixels)
+            print(f'\nPixel Acc: {pixel_acc}')
             print(f'Mean IOU: {mean_iou}')
 
-            return avg_loss, mean_iou, epoch_losses, epoch_iou
+            return avg_loss, mean_iou, epoch_losses, epoch_iou, pixel_acc
 
     def fit(self, train_dataloader, valid_dataloader):
         best_measure = -1
@@ -139,7 +149,7 @@ class MonuSegModel:
 
             # train and evaluate model performance
             train_loss, _ = self.train(train_dataloader)
-            valid_loss, measure, epoch_losses, epoch_iou = self.evaluate(
+            valid_loss, measure, epoch_losses, epoch_iou, pixel_acc = self.evaluate(
                 valid_dataloader)
 
             self.iou_evaluator.reset()

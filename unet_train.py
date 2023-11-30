@@ -10,11 +10,11 @@ from modules.MonuSeg_dataset import MonuSegDataset, generate_datasets
 from modules.MonuSeg_model import MonuSegModel
 from other_unet.unet_model import UNetSegmentationModel
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
 def run(data_path):
-
     # make results reproducible
     np.random.seed(42)
     torch.manual_seed(42)
@@ -22,7 +22,7 @@ def run(data_path):
     # define hyperparameters
     batch_size = 16
     epochs = 10
-    lrates = [0.01,0.001]
+    lrates = [0.01, 0.001]
     n_classes = 2
     in_channels = 3
     device = torch.device(
@@ -94,7 +94,7 @@ def run(data_path):
 
     best_model = {"model": None, "param": None,
                   "epoch": None, "measure": None, "weights": None,
-                  "iou": None
+                  "iou": None, "pix_accuracy": None
                   }
 
     for lr in lrates:
@@ -112,7 +112,7 @@ def run(data_path):
                                      lr=lr)
 
         # fit model
-        best_epoch, best_measure, best_weights, best_iou = monuseg_model.fit(
+        best_epoch, best_measure, best_weights, best_iou, best_pixAcc = monuseg_model.fit(
             dataloaders['train'], dataloaders['valid'])
 
         if best_model["measure"] is None or best_measure > best_model["measure"]:
@@ -122,6 +122,7 @@ def run(data_path):
             best_model["measure"] = best_measure
             best_model["weights"] = best_weights
             best_model['iou'] = best_iou
+            best_model['pix_accuracy'] = best_pixAcc
         print("Best Model IOU", best_model['measure'])
         # save best model
         torch.save(best_model["weights"], os.path.join(

@@ -4,11 +4,11 @@ class PixelAccuracyEvaluator:
         self.dataloader = dataloader
         self.device = device
 
-    def total_pixels(self, predictions, masks, predicted_class=1):
+    def total_pixels(self, predictions, masks):
         correct_pixels = 0
         total_pixels = 0
 
-        valid_masks = (masks == predicted_class)
+        valid_masks = (masks == 1)
         correct_pixels += (predictions == valid_masks).sum().item()
         total_pixels += masks.numel()
 
