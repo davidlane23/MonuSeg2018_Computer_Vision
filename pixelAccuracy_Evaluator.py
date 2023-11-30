@@ -1,17 +1,16 @@
-import torch
-
-
 class PixelAccuracyEvaluator:
-    def __init__(self, model, dataloader, device):
+    def __init__(self, model, dataloader, device, num_class):
         self.model = model
         self.dataloader = dataloader
         self.device = device
+        self.num_class = num_class
 
-    def total_pixels(selfs, predictions, masks):
+    def total_pixels(self, predictions, masks, predicted_class=1):
         correct_pixels = 0
         total_pixels = 0
 
-        correct_pixels += (predictions == masks).sum().item()
+        valid_masks = (masks == predicted_class)
+        correct_pixels += (predictions == valid_masks).sum().item()
         total_pixels += masks.numel()
 
         return correct_pixels, total_pixels  # Return the computed values
