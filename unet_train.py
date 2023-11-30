@@ -23,13 +23,12 @@ def run(data_path):
     batch_size = 1
     epochs = 10
     lrates = [0.01]
-    n_classes = 2
+    n_classes = 1
     in_channels = 3
     device = torch.device(
         "cuda") if torch.cuda.is_available() else torch.device("cpu")
     # apply pos weight to make positive class more important as image is imbalanced to background classes
     pos_weight = torch.tensor([3.0]).to(device)
-
     loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     save_dir = "MonuSeg_results"
     if not os.path.exists(save_dir):
@@ -122,6 +121,7 @@ def run(data_path):
             best_model["measure"] = best_measure
             best_model["weights"] = best_weights
             best_model['iou'] = best_iou
+
         print("Best Model IOU" , best_model['measure'])
         # save best model
         torch.save(best_model["weights"], os.path.join(
@@ -131,7 +131,6 @@ def run(data_path):
             file.write("parameter,epoch\n")
             file.write(
                 ",".join([str(best_model["param"]), str(best_model["epoch"])]))
-
         # save losses
         with open(os.path.join(save_dir, "monuseg_train_losses.txt"), "w+") as file:
             file.write(",".join(map(str, best_model["model"].train_losses)))

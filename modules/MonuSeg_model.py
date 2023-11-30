@@ -8,12 +8,12 @@ from sklearn.metrics import accuracy_score, jaccard_score
 
 
 class MonuSegModel:
-    def __init__(self, model, device, n_classes=2, weights=None, criterion=None, lr=None, epochs=None):
+    def __init__(self, model, device, n_classes=1, weights=None, criterion=None, lr=None, epochs=None):
         self.model = model
         self.criterion = criterion
         self.device = device
         self.epochs = epochs
-        self.iou_evaluator = IOU_Evaluator(n_classes)
+        self.iou_evaluator = IOU_Evaluator(num_classes=2)
         self.config_model(n_classes, weights)
         if lr is not None:
             self.optimizer = torch.optim.Adam(
