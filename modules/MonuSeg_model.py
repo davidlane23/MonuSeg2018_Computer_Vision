@@ -13,7 +13,7 @@ class MonuSegModel:
         self.criterion = criterion
         self.device = device
         self.epochs = epochs
-        self.iou_evaluator = IOU_Evaluator(n_classes)
+        self.iou_evaluator = IOU_Evaluator(num_classes=2)
         self.config_model(n_classes, weights)
         if lr is not None:
             self.optimizer = torch.optim.Adam(
