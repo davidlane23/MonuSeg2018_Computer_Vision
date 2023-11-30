@@ -7,6 +7,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 import torchvision.transforms as T
 import torchvision
+from PIL import Image
 
 from other_unet.unet_model import UNetSegmentationModel
 from modules.MonuSeg_dataset import MonuSegDataset, generate_datasets
@@ -17,6 +18,26 @@ from config import *
 
 
 warnings.filterwarnings("ignore")
+
+
+def numpy_array_to_image(array):
+    # Assuming array is a 2D or 3D NumPy array
+    if len(array.shape) == 2:
+        # For grayscale images
+        img_array = array
+    elif len(array.shape) == 3:
+        # For single-channel images (e.g., (H, W, C))
+        img_array = array.squeeze()
+    else:
+        raise ValueError("Unsupported array shape")
+
+    # Rescale values to the range [0, 255]
+    img_array = (img_array * 255).astype(np.uint8)
+
+    # Create a PIL Image from the array
+    img = Image.fromarray(img_array)
+
+    return img
 
 
 def run(data_path):
@@ -110,23 +131,34 @@ def run(data_path):
             SAVE_DIR, f"monuseg_{dl_name}_predictions.npy"), df.to_numpy())
 
         # Evaluate the AUC metrics
+        print(f"\nAUC Evaluation Results on {dl_name} dataset:")
+        print(f"{'Mean IOU':<25} {'Pixel Accuracy':<15}\n")
+
         iou_evaluator.update(predictions.to(DEVICE), ground_truth.to(DEVICE))
         predictions = predictions.to(DEVICE)
         ground_truth = ground_truth.to(DEVICE)
         iou_evaluator.update(predictions, ground_truth)
         mean_iou = iou_evaluator.get_mean_iou()
-        print("Mean IOU is: ", mean_iou)
 
         predictions = (predictions > 0.5).float()
         correct_pixels, total_pixels = pixel_accuracy_evaluator.total_pixels(
             predictions=predictions, masks=ground_truth)
         pixel_acc = pixel_accuracy_evaluator.get_pixel_accuracy(
             correct_pixels, total_pixels)
-        print("Pixel Acc: ", pixel_acc)
+
+        print(f"{mean_iou:<25} {pixel_acc:<15}")
+
+        print(f"\nOther Evaluation Results on {dl_name} dataset:")
+
+        print(f"{'Metric':<25} {'Value':<25}\n")
 
         for metric_name, metric_evaluator in metric_evaluators.items():
             metric_value = metric_evaluator(predictions, ground_truth)
-            print(f"{metric_name.capitalize()}: {metric_value}")
+
+            # Format the metric value based on the metric name
+            formatted_value = f"{metric_value:.4f}" if metric_name != 'accuracy' else f"{metric_value:.2%}"
+
+            print(f"{metric_name.capitalize():<25} {formatted_value:<25}")
 
     """
         Plot training and validation losses from saved files
@@ -159,17 +191,43 @@ def run(data_path):
 
     # Plot accuracies
     sns.lineplot(x=range(len(valid_accuracies)),
-                 y=valid_accuracies, ax=ax2, label="Valid accuracy")
+                 y=valid_accuracies, ax=ax2, label="Valid accuracy (mIOU)")
     sns.lineplot(x=range(len(pixel_accuracies)),
                  y=pixel_accuracies, ax=ax2, label="Pixel accuracy")
     ax2.set_title("Best Model's Accuracies Over Epochs")
 
     plt.show()
 
-    # Check the predicted image, read the npy file
-    pred_image = np.load(os.path.join(
-        SAVE_DIR, "monuseg_test_predictions.npy"))
-    print(pred_image)
+    # Show a sample prediction
+    loaded_data = np.load(os.path.join(
+        SAVE_DIR, "monuseg_valid_predictions.npy"), allow_pickle=True)
+
+    loaded_df = pd.DataFrame(loaded_data, columns=[
+        'ImageFile', 'Prediction', 'GroundTruth'])
+
+    # Assuming you want to visualize the first row of the DataFrame
+    row_index = 0
+    img_file = loaded_df.loc[row_index, 'ImageFile']
+    prediction = loaded_df.loc[row_index, 'Prediction']
+    ground_truth = loaded_df.loc[row_index, 'GroundTruth']
+
+    prediction_img = numpy_array_to_image(prediction)
+    ground_truth_img = numpy_array_to_image(ground_truth)
+
+    # Plot the images
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+    # Assuming img_file is a path to the image
+    axes[0].imshow(plt.imread(img_file))
+    axes[0].set_title('Original Image')
+
+    axes[1].imshow(prediction_img, cmap='gray')
+    axes[1].set_title('Prediction')
+
+    axes[2].imshow(ground_truth_img, cmap='gray')
+    axes[2].set_title('Ground Truth')
+
+    plt.show()
 
 
 if __name__ == "__main__":
