@@ -9,6 +9,7 @@ def run(data_path):
         os.makedirs(save_dir)
 
     print("Loading dataset...")
+    # if(not os.listdir(data_path)):
 
     generate_datasets(data_path, save_dir)
 

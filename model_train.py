@@ -163,7 +163,7 @@ if __name__ == "__main__":
             "val": val_loader
         }
     # lr_list = [0.001,0.01,0.1]
-    lr_list = [0.001]
+    lr_list = [0.001,0.01,0.1]
     # print(model.classifier[1].num_features)
     for lr in lr_list:
         model.classifier = DeepLabHead(2048,1)

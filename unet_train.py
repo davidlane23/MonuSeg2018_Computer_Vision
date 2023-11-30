@@ -39,6 +39,9 @@ def run(data_path):
     data_transforms = {
         'train': transforms.Compose([
             transforms.Resize(128),
+            # transforms.RandomHorizontalFlip(),
+            # transforms.RandomRotation(45),
+            # transforms.RandomAdjustSharpness(0.2),
             transforms.ToTensor(),
         ]),
         'valid': transforms.Compose([

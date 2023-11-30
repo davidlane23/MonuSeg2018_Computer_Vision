@@ -145,90 +145,89 @@ def generate_datasets(root, save_dir):
     train_root = os.path.join(root, "train")
     val_root = os.path.join(root, "val")
     test_root = os.path.join(root, "test")
+    if not os.path.exists(train_root):
+        # Identify unique tissue types
+        unique_tissue_types = set(tissue_types)  # imported from utils
+        tissue_type_count = {tissue_type: tissue_types.count(
+            tissue_type) for tissue_type in unique_tissue_types}
+        print(unique_tissue_types)
+        print(tissue_type_count)
 
-    # Identify unique tissue types
-    unique_tissue_types = set(tissue_types)  # imported from utils
-    tissue_type_count = {tissue_type: tissue_types.count(
-        tissue_type) for tissue_type in unique_tissue_types}
-    print(unique_tissue_types)
-    print(tissue_type_count)
+        file_tissue_mapping = map_files_to_tissue_types(
+            tissue_image_dir, tissue_types)
 
-    file_tissue_mapping = map_files_to_tissue_types(
-        tissue_image_dir, tissue_types)
+        # Split data into train val and test
+        train_data, val_data, test_data = split_data(file_tissue_mapping)
 
-    # Split data into train val and test
-    train_data, val_data, test_data = split_data(file_tissue_mapping)
+        # save splits
+        with open(os.path.join(save_dir, "monuseg_datasets_split.txt"), "w+") as file:
+            file.write(",".join([file for file in train_data]) + "\n")
+            file.write(",".join([file for file in val_data]) + "\n")
+            file.write(",".join([file for file in test_data]))
 
-    # save splits
-    with open(os.path.join(save_dir, "monuseg_datasets_split.txt"), "w+") as file:
-        file.write(",".join([file for file in train_data]) + "\n")
-        file.write(",".join([file for file in val_data]) + "\n")
-        file.write(",".join([file for file in test_data]))
+        # Save the splits into into txt
 
-    # Save the splits into into txt
+        # Ensure data is split properly
+        print("Train Data", len(train_data))
+        print("Val Data", len(val_data))
+        print("Test Data", len(test_data))
 
-    # Ensure data is split properly
-    print("Train Data", len(train_data))
-    print("Val Data", len(val_data))
-    print("Test Data", len(test_data))
+        # Define new folders to store train and val data
+        new_train_img_path = os.path.join(train_root, "tissue_image")
+        new_train_annot_path = os.path.join(train_root, "annotations")
 
-    # Define new folders to store train and val data
-    new_train_img_path = os.path.join(train_root, "tissue_image")
-    new_train_annot_path = os.path.join(train_root, "annotations")
+        new_val_img_path = os.path.join(val_root, "tissue_image")
+        new_val_annot_path = os.path.join(val_root, "annotations")
 
-    new_val_img_path = os.path.join(val_root, "tissue_image")
-    new_val_annot_path = os.path.join(val_root, "annotations")
+        new_test_img_path = os.path.join(test_root, "tissue_image")
+        new_test_annot_path = os.path.join(test_root, "annotations")
 
-    new_test_img_path = os.path.join(test_root, "tissue_image")
-    new_test_annot_path = os.path.join(test_root, "annotations")
+        new_train_mask_path = os.path.join(train_root, "masks")
+        new_val_mask_path = os.path.join(val_root, "masks")
+        new_test_mask_path = os.path.join(test_root, "masks")
 
-    new_train_mask_path = os.path.join(train_root, "masks")
-    new_val_mask_path = os.path.join(val_root, "masks")
-    new_test_mask_path = os.path.join(test_root, "masks")
+        # Create these folders if does not exists
+        os.makedirs(new_train_img_path, exist_ok=True)
+        os.makedirs(new_train_annot_path, exist_ok=True)
 
-    # Create these folders if does not exists
-    os.makedirs(new_train_img_path, exist_ok=True)
-    os.makedirs(new_train_annot_path, exist_ok=True)
+        os.makedirs(new_test_img_path, exist_ok=True)
+        os.makedirs(new_test_annot_path, exist_ok=True)
 
-    os.makedirs(new_test_img_path, exist_ok=True)
-    os.makedirs(new_test_annot_path, exist_ok=True)
+        os.makedirs(new_val_img_path, exist_ok=True)
+        os.makedirs(new_val_annot_path, exist_ok=True)
 
-    os.makedirs(new_val_img_path, exist_ok=True)
-    os.makedirs(new_val_annot_path, exist_ok=True)
+        os.makedirs(new_train_mask_path, exist_ok=True)
+        os.makedirs(new_val_mask_path, exist_ok=True)
+        os.makedirs(new_test_mask_path, exist_ok=True)
 
-    os.makedirs(new_train_mask_path, exist_ok=True)
-    os.makedirs(new_val_mask_path, exist_ok=True)
-    os.makedirs(new_test_mask_path, exist_ok=True)
+        # Define a dictionary to map data types to their corresponding destination paths
+        data_type_paths = {
+            'train': (new_train_img_path, new_train_annot_path),
+            'val': (new_val_img_path, new_val_annot_path),
+            'test': (new_test_img_path, new_test_annot_path)
+        }
+        # Loop through each data type (train, val, test)
+        for data_type, data_files in {'train': train_data, 'val': val_data, 'test': test_data}.items():
+            # Get the destination paths for the current data type
+            dest_img_path, dest_annot_path = data_type_paths[data_type]
 
-    # Define a dictionary to map data types to their corresponding destination paths
-    data_type_paths = {
-        'train': (new_train_img_path, new_train_annot_path),
-        'val': (new_val_img_path, new_val_annot_path),
-        'test': (new_test_img_path, new_test_annot_path)
-    }
+            # Loop through the data files and move them into image and annot folders
+            for file_name in data_files:
+                # Construct the full path to the source file
+                source_path = os.path.join(tissue_image_dir, file_name)
 
-    # Loop through each data type (train, val, test)
-    for data_type, data_files in {'train': train_data, 'val': val_data, 'test': test_data}.items():
-        # Get the destination paths for the current data type
-        dest_img_path, dest_annot_path = data_type_paths[data_type]
+                # Construct the full path to the destination file
+                dest_path = os.path.join(dest_img_path, file_name)
+                source_xml_path = os.path.join(
+                    annotation_dir, f"{os.path.splitext(file_name)[0]}.xml")
 
-        # Loop through the data files and move them into image and annot folders
-        for file_name in data_files:
-            # Construct the full path to the source file
-            source_path = os.path.join(tissue_image_dir, file_name)
+                # Construct the full path to the destination XML file
+                dest_xml_path = os.path.join(
+                    dest_annot_path, f"{os.path.splitext(file_name)[0]}.xml")
 
-            # Construct the full path to the destination file
-            dest_path = os.path.join(dest_img_path, file_name)
-            source_xml_path = os.path.join(
-                annotation_dir, f"{os.path.splitext(file_name)[0]}.xml")
+                # Check if file already exists before copying
+                if not os.path.exists(dest_path):
+                    shutil.copy(source_path, dest_path)
 
-            # Construct the full path to the destination XML file
-            dest_xml_path = os.path.join(
-                dest_annot_path, f"{os.path.splitext(file_name)[0]}.xml")
-
-            # Check if file already exists before copying
-            if not os.path.exists(dest_path):
-                shutil.copy(source_path, dest_path)
-
-            if not os.path.exists(dest_xml_path):
-                shutil.copy(source_xml_path, dest_xml_path)
+                if not os.path.exists(dest_xml_path):
+                    shutil.copy(source_xml_path, dest_xml_path)
