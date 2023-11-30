@@ -20,8 +20,8 @@ def run(data_path):
     torch.manual_seed(0)
 
     # define hyperparameters
-    batch_size = 16
-    epochs = 10
+    batch_size = 8
+    epochs = 20
     lrates = [0.01, 0.001]
     n_classes = 2
     in_channels = 3
@@ -40,17 +40,21 @@ def run(data_path):
         'train': transforms.Compose([
             transforms.Resize(256),
             transforms.ToTensor(),
-            transforms.RandomCrop(256),
-            transforms.RandomRotation(45),
-            transforms.RandomHorizontalFlip(0.5),
-            transforms.RandomAdjustSharpness(0, 0.5)
+            # transforms.RandomCrop(128),
+            # transforms.RandomRotation(10),
+            # transforms.RandomHorizontalFlip(),
+            # transforms.RandomInvert
+            transforms.ColorJitter(1,1,1),
+            transforms.RandomAdjustSharpness(0, 0.2)
         ]),
         'valid': transforms.Compose([
             transforms.Resize(256),
+            # transforms.CenterCrop(128),
             transforms.ToTensor(),
         ]),
         'test': transforms.Compose([
             transforms.Resize(256),
+            # transforms.CenterCrop(128),
             transforms.ToTensor(),
         ]),
     }

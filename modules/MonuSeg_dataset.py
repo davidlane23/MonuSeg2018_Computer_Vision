@@ -93,7 +93,8 @@ class MonuSegDataset(Dataset):
             img = self.transform(img)
             # Resize the mask to match the output size of the model
             resize_transform = transforms.Compose(
-                [transforms.Resize((256, 256), interpolation=Image.NEAREST), transforms.ToTensor()])
+                [transforms.Resize((256, 256), interpolation=Image.NEAREST),
+                 transforms.ToTensor()])
             mask = resize_transform(Image.fromarray(mask))
 
         return img, mask
