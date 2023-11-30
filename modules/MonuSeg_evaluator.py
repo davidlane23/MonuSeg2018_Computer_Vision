@@ -1,5 +1,6 @@
 import torch
 
+
 class IOU_Evaluator():
     def __init__(self, num_classes):
         self.num_classes = num_classes
@@ -9,13 +10,14 @@ class IOU_Evaluator():
         self.intersection = torch.zeros(self.num_classes)
         self.union = torch.zeros(self.num_classes)
 
-    def update(self,pred_mask,true_mask):
+    def update(self, pred_mask, true_mask):
         for i in range(self.num_classes):
             pred_mask_i = (pred_mask == i)
             true_mask_i = (true_mask == i)
             # calculates the intersection and the union of the predicted and true masks
-            intersection = torch.logical_and(pred_mask_i,true_mask_i).sum().item()
-            union = torch.logical_or(pred_mask_i,true_mask_i).sum().item()
+            intersection = torch.logical_and(
+                pred_mask_i, true_mask_i).sum().item()
+            union = torch.logical_or(pred_mask_i, true_mask_i).sum().item()
             self.intersection[i] += intersection
             self.union += union
 
@@ -25,10 +27,10 @@ class IOU_Evaluator():
         for i in range(self.num_classes):
             # apply epsilon to ensure no division over 0
             class_iou[i] = self.intersection[i]/self.union[i] + 2e-12
-        return  class_iou
+        return class_iou
 
     def get_mean_iou(self):
         class_iou = self.compute_iou()
         # total iou / num class
         mean_iou = class_iou.sum().item() / self.num_classes
-        return  mean_iou
+        return mean_iou

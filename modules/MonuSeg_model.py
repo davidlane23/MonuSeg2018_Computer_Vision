@@ -160,7 +160,6 @@ class MonuSegModel:
                 print(f'Updating best measure: {best_measure} -> {measure}')
                 best_epoch = epoch
                 best_weights = self.model.state_dict()
-                best_measure = measure
                 best_iou = mean_iou
 
         return best_epoch, best_measure, best_weights, best_iou
