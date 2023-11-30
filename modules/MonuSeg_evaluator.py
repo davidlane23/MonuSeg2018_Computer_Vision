@@ -19,7 +19,7 @@ class IOU_Evaluator():
                 pred_mask_i, true_mask_i).sum().item()
             union = torch.logical_or(pred_mask_i, true_mask_i).sum().item()
             self.intersection[i] += intersection
-            self.union += union
+            self.union[i] += union
 
     def compute_iou(self):
         class_iou = torch.zeros(self.num_classes)
@@ -27,6 +27,8 @@ class IOU_Evaluator():
         for i in range(self.num_classes):
             # apply epsilon to ensure no division over 0
             class_iou[i] = self.intersection[i]/self.union[i] + 2e-12
+            # print("Intersection: ",self.intersection[i])
+            # print("Union: ",self.union[i])
         return class_iou
 
     def get_mean_iou(self):

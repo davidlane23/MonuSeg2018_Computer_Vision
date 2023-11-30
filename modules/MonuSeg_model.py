@@ -76,16 +76,13 @@ class MonuSegModel:
             avg_loss = 0
             avg_accuracy = 0
             mean_iou = 0
+            # jaccard_iou = []
 
-            jaccard = JaccardIndex(
-                task='binary', num_classes=1, ignore_index=0).to(self.device)
+            # jaccard = JaccardIndex(
+            #     task='binary', num_classes=1,ignore_index=0).to(self.device)
 
             for i, (images, masks) in tqdm(enumerate(dataloader)):
                 images = images.to(self.device)
-
-                masks[masks <= 0.65] = 0
-                masks[masks > 0.65] = 1
-
                 masks = masks.to(self.device)
 
                 outputs = self.model(images)
@@ -110,7 +107,7 @@ class MonuSegModel:
                 # avg_accuracy = (avg_accuracy * data_size + mean_iou
                 #                 ) / (data_size + images.size(0))  # May be wrong
 
-                # mean_iou += jaccard(outputs, masks).item() # May be wrong
+                # jaccard_iou.append(jaccard(outputs, masks).item()) # May be wrong
 
                 epoch_losses.append(avg_loss)
                 epoch_iou.append(mean_iou)
@@ -118,7 +115,8 @@ class MonuSegModel:
                 data_size += images.size(0)
                 # update data size
                 num_of_batches += 1
-
+            #
+            # print(sum(jaccard_iou)/len(jaccard_iou))
             # avg_loss /= data_size
             mean_iou = self.iou_evaluator.get_mean_iou()
             print(f'Mean IOU: {mean_iou}')

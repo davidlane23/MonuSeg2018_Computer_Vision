@@ -20,9 +20,9 @@ def run(data_path):
     torch.manual_seed(42)
 
     # define hyperparameters
-    batch_size = 1
+    batch_size = 16
     epochs = 10
-    lrates = [0.01]
+    lrates = [0.01,0.001]
     n_classes = 2
     in_channels = 3
     device = torch.device(
