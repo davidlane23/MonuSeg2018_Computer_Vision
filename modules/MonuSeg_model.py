@@ -8,12 +8,12 @@ from sklearn.metrics import accuracy_score, jaccard_score
 
 
 class MonuSegModel:
-    def __init__(self, model, device, n_classes=1, weights=None, criterion=None, lr=None, epochs=None):
+    def __init__(self, model, device, n_classes=2, weights=None, criterion=None, lr=None, epochs=None):
         self.model = model
         self.criterion = criterion
         self.device = device
         self.epochs = epochs
-        self.iou_evaluator = IOU_Evaluator(num_classes=1)
+        self.iou_evaluator = IOU_Evaluator(n_classes)
         self.config_model(n_classes, weights)
         if lr is not None:
             self.optimizer = torch.optim.Adam(
@@ -98,7 +98,7 @@ class MonuSegModel:
 
                 mean_iou = self.iou_evaluator.get_mean_iou()
 
-                print("Mean iou: ", mean_iou)
+                # print("Mean iou: ", mean_iou)
 
                 loss = self.criterion(outputs, masks)
                 # avg_loss = (avg_loss * data_size + loss.item()) / \
@@ -141,7 +141,7 @@ class MonuSegModel:
 
             # train and evaluate model performance
             train_loss, _ = self.train(train_dataloader)
-            valid_loss, measure, mean_iou, epoch_losses, epoch_iou = self.evaluate(
+            valid_loss, measure, epoch_losses, epoch_iou = self.evaluate(
                 valid_dataloader)
 
             self.iou_evaluator.reset()
@@ -154,13 +154,14 @@ class MonuSegModel:
             self.train_losses.append(float(train_loss))
             self.valid_losses.append(float(valid_loss))
             self.valid_accuracies.append(float(measure))
-            self.mean_ious.append(float(mean_iou))
+            # self.mean_ious.append(float(mean_iou))
 
             if measure > best_measure:
                 print(f'Updating best measure: {best_measure} -> {measure}')
                 best_epoch = epoch
                 best_weights = self.model.state_dict()
-                best_iou = mean_iou
+                best_iou = measure
+                best_measure = measure
 
         return best_epoch, best_measure, best_weights, best_iou
 

@@ -23,7 +23,7 @@ def run(data_path):
     batch_size = 1
     epochs = 10
     lrates = [0.01]
-    n_classes = 1
+    n_classes = 2
     in_channels = 3
     device = torch.device(
         "cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -122,7 +122,7 @@ def run(data_path):
             best_model["measure"] = best_measure
             best_model["weights"] = best_weights
             best_model['iou'] = best_iou
-
+        print("Best Model IOU" , best_model['measure'])
         # save best model
         torch.save(best_model["weights"], os.path.join(
             save_dir, "monuseg_model.pt"))
