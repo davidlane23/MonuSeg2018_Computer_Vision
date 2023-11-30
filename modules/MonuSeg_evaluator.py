@@ -45,8 +45,7 @@ class PixelAccuracyEvaluator:
         correct_pixels = 0
         total_pixels = 0
 
-        valid_masks = (masks == 1)
-        correct_pixels += (predictions == valid_masks).sum().item()
+        correct_pixels += (predictions == masks).sum().item()
         total_pixels += masks.numel()
 
         return correct_pixels, total_pixels  # Return the computed values
