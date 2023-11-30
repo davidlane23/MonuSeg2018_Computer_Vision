@@ -8,6 +8,9 @@ class MonuSegEvaluator:
         self.iou_evaluator = IOU_Evaluator(n_classes)
         self.pixel_accuracy_evaluator = PixelAccuracyEvaluator()
 
+    def auc_evaluators(self):
+        return self.iou_evaluator, self.pixel_accuracy_evaluator
+
 
 class IOU_Evaluator():
     def __init__(self, num_classes):

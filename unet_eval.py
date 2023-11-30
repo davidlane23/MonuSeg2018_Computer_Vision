@@ -9,7 +9,7 @@ import torchvision.transforms as T
 from other_unet.unet_model import UNetSegmentationModel
 from modules.MonuSeg_dataset import MonuSegDataset, generate_datasets
 from modules.MonuSeg_model import MonuSegModel
-from modules.MonuSeg_evaluator import IOU_Evaluator
+from modules.MonuSeg_evaluator import IOU_Evaluator, MonuSegEvaluator
 import warnings
 from config import *
 
@@ -28,7 +28,7 @@ def run(data_path):
     loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     data_transform = T.Compose([
-        T.Resize(128),
+        T.Resize(256),
         # T.CenterCrop(60),
         T.ToTensor(),
     ])
@@ -65,13 +65,16 @@ def run(data_path):
     """
     with open(os.path.join(SAVE_DIR, "monuseg_params.txt")) as file:
         lines = file.readlines()
-        lr, epoch = lines[1].strip().split(",")  # Add more columns
+        lr, epoch, measure, pix_accuracy = lines[1].strip().split(
+            ",")  # Add more columns
 
     print("\nLoading best model...")
     print(f"Learning Rate: {lr}")
     print(f"Epoch: {epoch}")
 
-    iou_eval = IOU_Evaluator(N_CLASSES)
+    monuseg_evaluator = MonuSegEvaluator(N_CLASSES)
+    iou_evaluator, pixel_accuracy_evaluator = monuseg_evaluator.auc_evaluators()
+
     monuseg_model = MonuSegModel(model,
                                  device=DEVICE,
                                  n_classes=N_CLASSES,
@@ -85,10 +88,54 @@ def run(data_path):
     for dl_name, dataloader in dataloaders.items():
         predictions, ground_truth = monuseg_model.predict_batches(
             dataloader=dataloader)
-        iou_eval.update(predictions, ground_truth)
-        mean_iou = iou_eval.get_mean_iou()
-
+        iou_evaluator.update(predictions, ground_truth)
+        mean_iou = iou_evaluator.get_mean_iou()
         print("Mean IOU is: ", mean_iou)
+
+        predictions = (predictions > 0.5).float()
+        correct_pixels, total_pixels = pixel_accuracy_evaluator.total_pixels(
+            predictions=predictions, masks=ground_truth)
+        pixel_acc = pixel_accuracy_evaluator.get_pixel_accuracy(
+            correct_pixels, total_pixels)
+        print("Pixel Acc: ", pixel_acc)
+
+    """
+        Plot training and validation losses from saved files
+    """
+    # read in losses data
+    with open(os.path.join(SAVE_DIR, "monuseg_train_losses.txt")) as file:
+        train_losses = [float(loss)
+                        for loss in file.readline().strip().split(",")]
+    with open(os.path.join(SAVE_DIR, "monuseg_valid_losses.txt")) as file:
+        valid_losses = [float(loss)
+                        for loss in file.readline().strip().split(",")]
+
+    with open(os.path.join(SAVE_DIR, "monuseg_valid_accuracies.txt")) as file:
+        valid_accuracies = [float(acc)
+                            for acc in file.readline().strip().split(",")]
+
+    with open(os.path.join(SAVE_DIR, "monuseg_pixel_accuracies.txt")) as file:
+        pixel_accuracies = [float(acc)
+                            for acc in file.readline().strip().split(",")]
+
+    # Plot losses
+    figure, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 14))
+
+    # Plot train and validation losses
+    sns.lineplot(x=range(len(train_losses)),
+                 y=train_losses, ax=ax1, label="Train loss")
+    sns.lineplot(x=range(len(valid_losses)),
+                 y=valid_losses, ax=ax1, label="Valid loss")
+    ax1.set_title("Best Model's Average Losses Over Epochs")
+
+    # Plot accuracies
+    sns.lineplot(x=range(len(valid_accuracies)),
+                 y=valid_accuracies, ax=ax2, label="Valid accuracy")
+    sns.lineplot(x=range(len(pixel_accuracies)),
+                 y=pixel_accuracies, ax=ax2, label="Pixel accuracy")
+    ax2.set_title("Best Model's Accuracies Over Epochs")
+
+    plt.show()
 
 
 if __name__ == "__main__":
