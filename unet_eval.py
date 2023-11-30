@@ -2,9 +2,11 @@ import os
 
 import numpy as np
 import torch
+import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 import torchvision.transforms as T
+import torchvision
 
 from other_unet.unet_model import UNetSegmentationModel
 from modules.MonuSeg_dataset import MonuSegDataset, generate_datasets
@@ -88,6 +90,25 @@ def run(data_path):
     for dl_name, dataloader in dataloaders.items():
         predictions, ground_truth = monuseg_model.predict_batches(
             dataloader=dataloader)
+
+        df = pd.DataFrame(columns=['ImageFile', 'Prediction', 'GroundTruth'])
+
+        for idx, pred in enumerate(predictions):
+            label = ground_truth[idx]
+            if dl_name == "valid":
+                img_file = datasets['valid'].img_list[idx]
+            else:
+                img_file = datasets['test'].img_list[idx]
+
+            pred_np = pred.numpy()
+            label_np = label.numpy()
+            df = df._append({'ImageFile': img_file, 'Prediction': pred_np, 'GroundTruth': label_np,
+                             }, ignore_index=True)
+
+        np.save(os.path.join(
+            SAVE_DIR, f"monuseg_{dl_name}_predictions.npy"), df.to_numpy())
+
+        # Evaluate the AUC metrics
         iou_evaluator.update(predictions.to(DEVICE), ground_truth.to(DEVICE))
         mean_iou = iou_evaluator.get_mean_iou()
         print("Mean IOU is: ", mean_iou)
@@ -136,6 +157,11 @@ def run(data_path):
     ax2.set_title("Best Model's Accuracies Over Epochs")
 
     plt.show()
+
+    # Check the predicted image, read the npy file
+    pred_image = np.load(os.path.join(
+        SAVE_DIR, "monuseg_test_predictions.npy"))
+    print(pred_image)
 
 
 if __name__ == "__main__":

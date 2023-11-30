@@ -190,11 +190,11 @@ class MonuSegModel:
                 outputs[outputs <= 0.65] = 0
                 outputs[outputs > 0.65] = 1
 
-                # Assuming a threshold of 0.5 for binary segmentation
-                predictions = (outputs > 0.5).float()
+                # # Assuming a threshold of 0.5 for binary segmentation
+                # predictions = (outputs > 0.5).float()
 
                 # Append predictions and ground truth to the lists
-                all_predictions.append(predictions)
+                all_predictions.append(outputs)
                 all_ground_truth.append(masks)
 
         # Concatenate predictions and ground truth along batches
