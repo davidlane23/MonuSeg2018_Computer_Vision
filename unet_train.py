@@ -16,8 +16,8 @@ warnings.filterwarnings("ignore")
 
 def run(data_path):
     # make results reproducible
-    np.random.seed(42)
-    torch.manual_seed(42)
+    np.random.seed(0)
+    torch.manual_seed(0)
 
     # define hyperparameters
     batch_size = 16
@@ -38,18 +38,19 @@ def run(data_path):
 
     data_transforms = {
         'train': transforms.Compose([
-            transforms.Resize(128),
-            # transforms.RandomHorizontalFlip(),
-            # transforms.RandomRotation(45),
-            # transforms.RandomAdjustSharpness(0.2),
+            transforms.Resize(256),
             transforms.ToTensor(),
+            transforms.RandomCrop(256),
+            transforms.RandomRotation(45),
+            transforms.RandomHorizontalFlip(0.5),
+            transforms.RandomAdjustSharpness(0, 0.5)
         ]),
         'valid': transforms.Compose([
-            transforms.Resize(128),
+            transforms.Resize(256),
             transforms.ToTensor(),
         ]),
         'test': transforms.Compose([
-            transforms.Resize(128),
+            transforms.Resize(256),
             transforms.ToTensor(),
         ]),
     }
@@ -94,7 +95,7 @@ def run(data_path):
 
     best_model = {"model": None, "param": None,
                   "epoch": None, "measure": None, "weights": None,
-                  "iou": None, "pix_accuracy": None
+                  "pix_accuracy": None
                   }
 
     for lr in lrates:
@@ -112,7 +113,7 @@ def run(data_path):
                                      lr=lr)
 
         # fit model
-        best_epoch, best_measure, best_weights, best_iou, best_pixAcc = monuseg_model.fit(
+        best_epoch, best_measure, best_weights, best_pix_acc = monuseg_model.fit(
             dataloaders['train'], dataloaders['valid'])
 
         if best_model["measure"] is None or best_measure > best_model["measure"]:
@@ -121,23 +122,32 @@ def run(data_path):
             best_model["epoch"] = best_epoch
             best_model["measure"] = best_measure
             best_model["weights"] = best_weights
-            best_model['iou'] = best_iou
-            best_model['pix_accuracy'] = best_pixAcc
-        print("Best Model IOU", best_model['measure'])
-        # save best model
-        torch.save(best_model["weights"], os.path.join(
-            save_dir, "monuseg_model.pt"))
+            best_model['pix_accuracy'] = best_pix_acc
 
-        with open(os.path.join(save_dir, "monuseg_params.txt"), "w+") as file:
-            file.write("parameter,epoch\n")
-            file.write(
-                ",".join([str(best_model["param"]), str(best_model["epoch"])]))
-        # save losses
-        with open(os.path.join(save_dir, "monuseg_train_losses.txt"), "w+") as file:
-            file.write(",".join(map(str, best_model["model"].train_losses)))
+    # save best model
+    torch.save(best_model["weights"], os.path.join(
+        save_dir, "monuseg_model.pt"))
 
-        with open(os.path.join(save_dir, "monuseg_valid_losses.txt"), "w+") as file:
-            file.write(",".join(map(str, best_model["model"].valid_losses)))
+    with open(os.path.join(save_dir, "monuseg_params.txt"), "w+") as file:
+        file.write("parameter,epoch,measure,pix_accuracy\n")
+        file.write(
+            ",".join([str(best_model["param"]), str(best_model["epoch"]), str(best_model["measure"]), str(best_model["pix_accuracy"])]))
+
+    # save losses
+    with open(os.path.join(save_dir, "monuseg_train_losses.txt"), "w+") as file:
+        file.write(",".join(map(str, best_model["model"].train_losses)))
+
+    with open(os.path.join(save_dir, "monuseg_valid_losses.txt"), "w+") as file:
+        file.write(",".join(map(str, best_model["model"].valid_losses)))
+
+        # save accuracies
+    with open(os.path.join(save_dir, "monuseg_valid_accuracies.txt"), "w+") as file:
+        file.write(
+            ",".join(map(str, best_model["model"].valid_accuracies)))
+
+    with open(os.path.join(save_dir, "monuseg_pixel_accuracies.txt"), "w+") as file:
+        file.write(
+            ",".join(map(str, best_model["model"].pixel_accuracies)))
 
 
 if __name__ == "__main__":

@@ -32,6 +32,10 @@ class MonuSegDataset(Dataset):
 
     def generate_masks(self):
         print("Generating masks...")
+        # Check if directory exists, if not create it
+        if not os.path.exists(self.masks_path):
+            os.makedirs(self.masks_path)
+
         if len(os.listdir(self.masks_path)) == 0:
             for annot in os.listdir(self.annotations_path):
                 if annot == "desktop.ini":
@@ -89,7 +93,7 @@ class MonuSegDataset(Dataset):
             img = self.transform(img)
             # Resize the mask to match the output size of the model
             resize_transform = transforms.Compose(
-                [transforms.Resize((128, 128), interpolation=Image.NEAREST), transforms.ToTensor()])
+                [transforms.Resize((256, 256), interpolation=Image.NEAREST), transforms.ToTensor()])
             mask = resize_transform(Image.fromarray(mask))
 
         return img, mask

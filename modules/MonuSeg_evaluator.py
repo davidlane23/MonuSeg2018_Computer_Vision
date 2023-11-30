@@ -1,4 +1,12 @@
 import torch
+import numpy as np
+from sklearn.metrics import average_precision_score, accuracy_score
+
+
+class MonuSegEvaluator:
+    def __init__(self, n_classes):
+        self.iou_evaluator = IOU_Evaluator(n_classes)
+        self.pixel_accuracy_evaluator = PixelAccuracyEvaluator()
 
 
 class IOU_Evaluator():
@@ -37,9 +45,8 @@ class IOU_Evaluator():
 
 
 class PixelAccuracyEvaluator:
-    def __init__(self, model, device):
-        self.model = model
-        self.device = device
+    def __init__(self):
+        pass
 
     def total_pixels(self, predictions, masks):
         correct_pixels = 0

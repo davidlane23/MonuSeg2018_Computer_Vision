@@ -1,2 +1,2 @@
-parameter,epoch
-0.001,9
+parameter,epoch,measure,pix_accuracy
+0.01,5,0.4000723958015442,0.7014236450195312
