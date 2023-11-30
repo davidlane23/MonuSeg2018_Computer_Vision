@@ -1,8 +1,6 @@
 import torch
 from tqdm import tqdm
 import torch.nn as nn
-# from torchmetrics import JaccardIndex
-from torchmetrics.classification import BinaryJaccardIndex, JaccardIndex
 from .MonuSeg_evaluator import IOU_Evaluator
 from .MonuSeg_evaluator import PixelAccuracyEvaluator
 from sklearn.metrics import accuracy_score, jaccard_score
