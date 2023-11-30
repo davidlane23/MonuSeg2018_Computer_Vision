@@ -9,7 +9,7 @@ import torchvision.transforms as T
 import torchvision
 from PIL import Image
 
-from Model.unet_model import UNetSegmentationModel
+from model.unet_model import UNetSegmentationModel
 from modules.MonuSeg_dataset import MonuSegDataset, generate_datasets
 from modules.MonuSeg_model import MonuSegModel
 from modules.MonuSeg_evaluator import IOU_Evaluator, MonuSegEvaluator
