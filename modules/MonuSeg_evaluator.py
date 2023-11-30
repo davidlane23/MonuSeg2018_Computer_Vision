@@ -19,7 +19,7 @@ class IOU_Evaluator():
                 pred_mask_i, true_mask_i).sum().item()
             union = torch.logical_or(pred_mask_i, true_mask_i).sum().item()
             self.intersection[i] += intersection
-            self.union += union
+            self.union[i] += union
 
     def compute_iou(self):
         class_iou = torch.zeros(self.num_classes)

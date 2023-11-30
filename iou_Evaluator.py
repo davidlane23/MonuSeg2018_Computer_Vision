@@ -17,15 +17,16 @@ class IOU_Evaluator():
             intersection = torch.logical_and(pred_mask_i,true_mask_i).sum().item()
             union = torch.logical_or(pred_mask_i,true_mask_i).sum().item()
             self.intersection[i] += intersection
-            self.union += union
+            self.union[i] += union
 
     def compute_iou(self):
         class_iou = torch.zeros(self.num_classes)
         # IOU = Jaccard Dist =  A INTERSECT B / A UNION B
         for i in range(self.num_classes):
             # apply epsilon to ensure no division over 0
+
             class_iou[i] = self.intersection[i]/self.union[i] + 2e-12
-        return  class_iou
+        return class_iou
 
     def getMeanIOU(self):
         class_iou = self.compute_iou()
