@@ -109,7 +109,7 @@ def run(data_path):
                                      lr=lr)
 
         # fit model
-        best_epoch, best_measure, best_weights, best_iou = monuseg_model.fit(
+        best_epoch, best_measure, best_weights, best_iou, best_pixAcc = monuseg_model.fit(
             dataloaders['train'], dataloaders['valid'])
 
         if best_model["measure"] is None or best_measure > best_model["measure"]:
@@ -119,6 +119,7 @@ def run(data_path):
             best_model["measure"] = best_measure
             best_model["weights"] = best_weights
             best_model['iou'] = best_iou
+            best_model['pix_accuracy'] = best_pixAcc
         print("Best Model IOU", best_model['measure'])
         # save best model
         torch.save(best_model["weights"], os.path.join(

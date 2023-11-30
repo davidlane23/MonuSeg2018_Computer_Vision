@@ -26,7 +26,7 @@ class IOU_Evaluator():
         # IOU = Jaccard Dist =  A INTERSECT B / A UNION B
         for i in range(self.num_classes):
             # apply epsilon to ensure no division over 0
-            class_iou[i] = self.intersection[i]/self.union[i] + 2e-12
+            class_iou[i] = self.intersection[i] / self.union[i] + 2e-12
         return class_iou
 
     def get_mean_iou(self):
@@ -34,3 +34,23 @@ class IOU_Evaluator():
         # total iou / num class
         mean_iou = class_iou.sum().item() / self.num_classes
         return mean_iou
+
+
+class PixelAccuracyEvaluator:
+    def __init__(self, model, device):
+        self.model = model
+        self.device = device
+
+    def total_pixels(self, predictions, masks):
+        correct_pixels = 0
+        total_pixels = 0
+
+        valid_masks = (masks == 1)
+        correct_pixels += (predictions == valid_masks).sum().item()
+        total_pixels += masks.numel()
+
+        return correct_pixels, total_pixels  # Return the computed values
+
+    def get_pixel_accuracy(self, correct_pixels, total_pixels):
+        pixel_acc = correct_pixels / total_pixels
+        return pixel_acc
