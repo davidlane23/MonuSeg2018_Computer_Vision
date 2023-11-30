@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from sklearn.metrics import average_precision_score, accuracy_score
+from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
 
 
 class MonuSegEvaluator:
@@ -10,6 +10,15 @@ class MonuSegEvaluator:
 
     def auc_evaluators(self):
         return self.iou_evaluator, self.pixel_accuracy_evaluator
+
+    def multi_metric_evaluators(self, average='weighted'):
+        evaluators = {
+            'f1_score': lambda pred, true: f1_score(true.flatten(), pred.flatten(), average=average),
+            'precision': lambda pred, true: precision_score(true.flatten(), pred.flatten(), average=average),
+            'recall': lambda pred, true: recall_score(true.flatten(), pred.flatten(), average=average),
+            'accuracy': lambda pred, true: accuracy_score(true.flatten(), pred.flatten())
+        }
+        return evaluators
 
 
 class IOU_Evaluator():
