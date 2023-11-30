@@ -1,0 +1,2 @@
+This U-Net architecture was taken from https://github.com/ajithvallabai/UNet-Pytorch-Customdataset/blob/main/unet/unet_model.py
+Other files such as Custom Dataset, Training code and eval code was done by Davin,Isaac and Yi Xing.
