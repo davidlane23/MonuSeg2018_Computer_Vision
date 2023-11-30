@@ -71,7 +71,6 @@ class MonuSegDataset(Dataset):
 
     def __len__(self):
         return len(self.img_list)
-
     def __getitem__(self, idx):
         img_path = self.img_list[idx]
         masks = self.masks_list[idx]

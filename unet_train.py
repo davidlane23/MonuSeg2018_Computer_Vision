@@ -36,17 +36,33 @@ def run(data_path):
 
     # define transforms
 
-    data_transforms = {
-        'train': transforms.Compose([
+    data_transforms = \
+    {
+        'train':
+        [
+            transforms.Compose([
             transforms.Resize(256),
             transforms.ToTensor(),
-            # transforms.RandomCrop(128),
-            # transforms.RandomRotation(10),
-            # transforms.RandomHorizontalFlip(),
-            # transforms.RandomInvert
-            transforms.ColorJitter(1,1,1),
-            transforms.RandomAdjustSharpness(0, 0.2)
-        ]),
+            transforms.ColorJitter(1,1,1,0.5),
+            transforms.RandomAdjustSharpness(0, 0.2)]),
+
+            transforms.Compose([
+            transforms.Resize(256),
+            transforms.ToTensor(),
+            transforms.ColorJitter(1,1,1,0.5)]),
+
+            transforms.Compose([
+                transforms.Resize(256),
+                transforms.ToTensor(),
+                transforms.ColorJitter(1, 1, 1, 0.5),
+                transforms.GaussianBlur(3)]),
+
+            transforms.Compose([
+                transforms.Resize(256),
+                transforms.ToTensor(),
+                transforms.ColorJitter(1, 1, 1, 0.5),
+                transforms.RandomSolarize(0.2)])
+        ],
         'valid': transforms.Compose([
             transforms.Resize(256),
             # transforms.CenterCrop(128),
@@ -71,7 +87,8 @@ def run(data_path):
     model.to(device)
 
     # create train and validation datasets
-    datasets = {
+    datasets = \
+    {
         'train': MonuSegDataset(train_path, data_transforms['train']),
         'valid': MonuSegDataset(valid_path, data_transforms['valid']),
         'test': MonuSegDataset(test_path, data_transforms['valid'])
@@ -86,49 +103,52 @@ def run(data_path):
     print(f"Validation: {len(datasets['valid'])}")
     print(f"Test: {len(datasets['test'])}")
 
-    datasets["train"].transform = data_transforms["train"]
-    datasets["valid"].transform = data_transforms["valid"]
-    datasets["test"].transform = data_transforms["test"]
-
-    # create train and validation dataloaders
-    dataloaders = {
-        'train': torch.utils.data.DataLoader(datasets['train'], batch_size=batch_size, shuffle=True),
-        'valid': torch.utils.data.DataLoader(datasets['valid'], batch_size=batch_size, shuffle=False),
-        'test': torch.utils.data.DataLoader(datasets['test'], batch_size=batch_size, shuffle=False)
-    }
-
     best_model = {"model": None, "param": None,
                   "epoch": None, "measure": None, "weights": None,
-                  "pix_accuracy": None
+                  "pix_accuracy": None,"trg_transform": None
                   }
+    for transform_idx in range(len(data_transforms)):
+        datasets["train"].transform = data_transforms["train"][transform_idx]
+        datasets["valid"].transform = data_transforms["valid"]
+        datasets["test"].transform = data_transforms["test"]
 
-    for lr in lrates:
-        print(f"\nTraining model... (lr: {lr})")
+        # create train and validation dataloaders
+        dataloaders = \
+        {
+            'train': torch.utils.data.DataLoader(datasets['train'], batch_size=batch_size, shuffle=True),
+            'valid': torch.utils.data.DataLoader(datasets['valid'], batch_size=batch_size, shuffle=False),
+            'test': torch.utils.data.DataLoader(datasets['test'], batch_size=batch_size, shuffle=False)
+        }
+        for lr in lrates:
+            print(f"\nTraining model... (lr: {lr}), (transform: {transform_idx})")
 
-        # clear gpu cache
-        torch.cuda.empty_cache() if device == 'cuda' else None
+            # clear gpu cache
+            torch.cuda.empty_cache() if device == 'cuda' else None
 
-        # load model
-        monuseg_model = MonuSegModel(model,
-                                     device=device,
-                                     n_classes=n_classes,
-                                     epochs=epochs,
-                                     criterion=loss,
-                                     lr=lr)
+            # load model
+            monuseg_model = MonuSegModel(model,
+                                         device=device,
+                                         n_classes=n_classes,
+                                         epochs=epochs,
+                                         criterion=loss,
+                                         lr=lr)
 
-        # fit model
-        best_epoch, best_measure, best_weights, best_pix_acc = monuseg_model.fit(
-            dataloaders['train'], dataloaders['valid'])
+            # fit model
+            best_epoch, best_measure, best_weights, best_pix_acc = monuseg_model.fit(
+                dataloaders['train'], dataloaders['valid'])
 
-        if best_model["measure"] is None or best_measure > best_model["measure"]:
-            best_model["model"] = monuseg_model
-            best_model["param"] = lr
-            best_model["epoch"] = best_epoch
-            best_model["measure"] = best_measure
-            best_model["weights"] = best_weights
-            best_model['pix_accuracy'] = best_pix_acc
-
-    # save best model
+            if best_model["measure"] is None or best_measure > best_model["measure"]:
+                best_model["model"] = monuseg_model
+                best_model["param"] = lr
+                best_model["epoch"] = best_epoch
+                best_model["measure"] = best_measure
+                best_model["weights"] = best_weights
+                best_model['pix_accuracy'] = best_pix_acc
+                best_model['trg_transform'] = transform_idx
+    print(best_model['trg_transform'])
+    print(best_model['param'])
+    print(best_model['measure'])
+        # save best model
     torch.save(best_model["weights"], os.path.join(
         save_dir, "monuseg_model.pt"))
 

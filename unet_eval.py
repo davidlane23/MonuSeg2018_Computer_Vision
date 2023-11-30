@@ -90,6 +90,7 @@ def run(data_path):
     for dl_name, dataloader in dataloaders.items():
         predictions, ground_truth = monuseg_model.predict_batches(
             dataloader=dataloader)
+<<<<<<< HEAD
 
         df = pd.DataFrame(columns=['ImageFile', 'Prediction', 'GroundTruth'])
 
@@ -110,6 +111,11 @@ def run(data_path):
 
         # Evaluate the AUC metrics
         iou_evaluator.update(predictions.to(DEVICE), ground_truth.to(DEVICE))
+=======
+        predictions = predictions.to(DEVICE)
+        ground_truth = ground_truth.to(DEVICE)
+        iou_evaluator.update(predictions, ground_truth)
+>>>>>>> 3590761200130f1d852beb2f6ac43efc18c039d6
         mean_iou = iou_evaluator.get_mean_iou()
         print("Mean IOU is: ", mean_iou)
 
