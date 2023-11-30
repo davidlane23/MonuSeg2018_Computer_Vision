@@ -145,9 +145,9 @@ def run(data_path):
                 best_model["weights"] = best_weights
                 best_model['pix_accuracy'] = best_pix_acc
                 best_model['trg_transform'] = transform_idx
-    print(best_model['trg_transform'])
-    print(best_model['param'])
-    print(best_model['measure'])
+    print("Chosen Model Trained with transform: ", best_model['trg_transform'])
+    print("Chosen Model Trained with lr: ", best_model['param'])
+    print(f"Chosen Model achieved {best_model['measure']} mIOU")
         # save best model
     torch.save(best_model["weights"], os.path.join(
         save_dir, "monuseg_model.pt"))
