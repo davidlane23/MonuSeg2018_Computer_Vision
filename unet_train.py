@@ -10,25 +10,15 @@ from modules.MonuSeg_dataset import MonuSegDataset, generate_datasets
 from modules.MonuSeg_model import MonuSegModel
 from other_unet.unet_model import UNetSegmentationModel
 import warnings
+from config import *
 
 warnings.filterwarnings("ignore")
 
 
 def run(data_path):
-    # make results reproducible
-    np.random.seed(0)
-    torch.manual_seed(0)
 
-    # define hyperparameters
-    batch_size = 8
-    epochs = 20
-    lrates = [0.01, 0.001]
-    n_classes = 2
-    in_channels = 3
-    device = torch.device(
-        "cuda") if torch.cuda.is_available() else torch.device("cpu")
     # apply pos weight to make positive class more important as image is imbalanced to background classes
-    pos_weight = torch.tensor([3.0]).to(device)
+    pos_weight = torch.tensor([3.0]).to(DEVICE)
     loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     save_dir = "MonuSeg_results"
     if not os.path.exists(save_dir):
@@ -37,38 +27,38 @@ def run(data_path):
     # define transforms
 
     data_transforms = \
-    {
-        'train':
-        [
-            transforms.Compose([
-            transforms.Resize(256),
-            transforms.ToTensor(),
-            transforms.ColorJitter(1,1,1,0.5),
-            transforms.RandomAdjustSharpness(0, 0.2)]),
+        {
+            'train':
+            [
+                transforms.Compose([
+                    transforms.Resize(256),
+                    transforms.ToTensor(),
+                    transforms.ColorJitter(1, 1, 1, 0.5),
+                    transforms.RandomAdjustSharpness(0, 0.2)]),
 
-            transforms.Compose([
-                transforms.Resize(256),
-                transforms.ToTensor(),
-                transforms.ColorJitter(1, 1, 1, 0.5),
-                transforms.GaussianBlur(3)]),
+                transforms.Compose([
+                    transforms.Resize(256),
+                    transforms.ToTensor(),
+                    transforms.ColorJitter(1, 1, 1, 0.5),
+                    transforms.GaussianBlur(3)]),
 
-            transforms.Compose([
+                transforms.Compose([
+                    transforms.Resize(256),
+                    transforms.ToTensor(),
+                    transforms.ColorJitter(1, 1, 1, 0.5),
+                    transforms.RandomSolarize(0.2)])
+            ],
+            'valid': transforms.Compose([
                 transforms.Resize(256),
+                # transforms.CenterCrop(128),
                 transforms.ToTensor(),
-                transforms.ColorJitter(1, 1, 1, 0.5),
-                transforms.RandomSolarize(0.2)])
-        ],
-        'valid': transforms.Compose([
-            transforms.Resize(256),
-            # transforms.CenterCrop(128),
-            transforms.ToTensor(),
-        ]),
-        'test': transforms.Compose([
-            transforms.Resize(256),
-            # transforms.CenterCrop(128),
-            transforms.ToTensor(),
-        ]),
-    }
+            ]),
+            'test': transforms.Compose([
+                transforms.Resize(256),
+                # transforms.CenterCrop(128),
+                transforms.ToTensor(),
+            ]),
+        }
 
     print("Loading dataset...")
 
@@ -79,15 +69,15 @@ def run(data_path):
 
     # UNet model
     model = UNetSegmentationModel(in_channels=3, out_channels=1)
-    model.to(device)
+    model.to(DEVICE)
 
     # create train and validation datasets
     datasets = \
-    {
-        'train': MonuSegDataset(train_path, data_transforms['train']),
-        'valid': MonuSegDataset(valid_path, data_transforms['valid']),
-        'test': MonuSegDataset(test_path, data_transforms['valid'])
-    }
+        {
+            'train': MonuSegDataset(train_path, data_transforms['train']),
+            'valid': MonuSegDataset(valid_path, data_transforms['valid']),
+            'test': MonuSegDataset(test_path, data_transforms['valid'])
+        }
 
     datasets['train'].generate_masks()
     datasets['valid'].generate_masks()
@@ -100,7 +90,7 @@ def run(data_path):
 
     best_model = {"model": None, "param": None,
                   "epoch": None, "measure": None, "weights": None,
-                  "pix_accuracy": None,"trg_transform": None
+                  "pix_accuracy": None, "trg_transform": None
                   }
     for transform_idx in range(len(data_transforms['train'])):
         datasets["train"].transform = data_transforms["train"][transform_idx]
@@ -109,22 +99,23 @@ def run(data_path):
 
         # create train and validation dataloaders
         dataloaders = \
-        {
-            'train': torch.utils.data.DataLoader(datasets['train'], batch_size=batch_size, shuffle=True),
-            'valid': torch.utils.data.DataLoader(datasets['valid'], batch_size=batch_size, shuffle=False),
-            'test': torch.utils.data.DataLoader(datasets['test'], batch_size=batch_size, shuffle=False)
-        }
-        for lr in lrates:
-            print(f"\nTraining model... (lr: {lr}), (transform: {transform_idx})")
+            {
+                'train': torch.utils.data.DataLoader(datasets['train'], batch_size=BATCH_SIZE, shuffle=True),
+                'valid': torch.utils.data.DataLoader(datasets['valid'], batch_size=BATCH_SIZE, shuffle=False),
+                'test': torch.utils.data.DataLoader(datasets['test'], batch_size=BATCH_SIZE, shuffle=False)
+            }
+        for lr in LRATES:
+            print(
+                f"\nTraining model... (lr: {lr}), (transform: {transform_idx})")
 
             # clear gpu cache
-            torch.cuda.empty_cache() if device == 'cuda' else None
+            torch.cuda.empty_cache() if DEVICE == 'cuda' else None
 
             # load model
             monuseg_model = MonuSegModel(model,
-                                         device=device,
-                                         n_classes=n_classes,
-                                         epochs=epochs,
+                                         device=DEVICE,
+                                         n_classes=N_CLASSES,
+                                         epochs=EPOCH,
                                          criterion=loss,
                                          lr=lr)
 
@@ -143,7 +134,7 @@ def run(data_path):
     print("Chosen Model Trained with transform: ", best_model['trg_transform'])
     print("Chosen Model Trained with lr: ", best_model['param'])
     print(f"Chosen Model achieved {best_model['measure']} mIOU")
-        # save best model
+    # save best model
     torch.save(best_model["weights"], os.path.join(
         save_dir, "monuseg_model.pt"))
 
