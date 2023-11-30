@@ -47,11 +47,6 @@ def run(data_path):
             transforms.RandomAdjustSharpness(0, 0.2)]),
 
             transforms.Compose([
-            transforms.Resize(256),
-            transforms.ToTensor(),
-            transforms.ColorJitter(1,1,1,0.5)]),
-
-            transforms.Compose([
                 transforms.Resize(256),
                 transforms.ToTensor(),
                 transforms.ColorJitter(1, 1, 1, 0.5),
@@ -107,7 +102,7 @@ def run(data_path):
                   "epoch": None, "measure": None, "weights": None,
                   "pix_accuracy": None,"trg_transform": None
                   }
-    for transform_idx in range(len(data_transforms)):
+    for transform_idx in range(len(data_transforms['train'])):
         datasets["train"].transform = data_transforms["train"][transform_idx]
         datasets["valid"].transform = data_transforms["valid"]
         datasets["test"].transform = data_transforms["test"]
