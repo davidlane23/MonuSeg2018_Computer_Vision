@@ -54,8 +54,6 @@ def run(data_path):
 
     print("Loading dataset...")
 
-    generate_datasets(data_path, save_dir)
-
     # paths
     train_path = os.path.join(data_path, "train")
     valid_path = os.path.join(data_path, "val")
@@ -122,7 +120,7 @@ def run(data_path):
             best_model["measure"] = best_measure
             best_model["weights"] = best_weights
             best_model['iou'] = best_iou
-        print("Best Model IOU" , best_model['measure'])
+        print("Best Model IOU", best_model['measure'])
         # save best model
         torch.save(best_model["weights"], os.path.join(
             save_dir, "monuseg_model.pt"))
