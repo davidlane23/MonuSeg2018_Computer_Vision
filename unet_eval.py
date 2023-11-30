@@ -153,7 +153,8 @@ def run(data_path):
         print(f"{'Metric':<25} {'Value':<25}\n")
 
         for metric_name, metric_evaluator in metric_evaluators.items():
-            metric_value = metric_evaluator(predictions.cpu().numpy(), ground_truth.cpu().numpy())
+            metric_value = metric_evaluator(
+                predictions.cpu().numpy(), ground_truth.cpu().numpy())
 
             # Format the metric value based on the metric name
             formatted_value = f"{metric_value:.4f}" if metric_name != 'accuracy' else f"{metric_value:.2%}"
@@ -196,6 +197,9 @@ def run(data_path):
                  y=pixel_accuracies, ax=ax2, label="Pixel accuracy")
     ax2.set_title("Best Model's Accuracies Over Epochs")
 
+    # Save the images
+    plt.savefig(os.path.join(SAVE_DIR, "losses_and_accuracy.png"))
+
     plt.show()
 
     # Show a sample prediction
@@ -226,6 +230,11 @@ def run(data_path):
 
     axes[2].imshow(ground_truth_img, cmap='gray')
     axes[2].set_title('Ground Truth')
+
+    # Save the images
+    save_path = os.path.join(SAVE_DIR, "sample_prediction_images")
+    os.makedirs(save_path, exist_ok=True)
+    plt.savefig(os.path.join(save_path, "monuseg_prediction_sample.png"))
 
     plt.show()
 
