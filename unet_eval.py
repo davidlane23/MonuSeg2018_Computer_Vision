@@ -88,7 +88,9 @@ def run(data_path):
     for dl_name, dataloader in dataloaders.items():
         predictions, ground_truth = monuseg_model.predict_batches(
             dataloader=dataloader)
-        iou_evaluator.update(predictions.to(DEVICE), ground_truth.to(DEVICE))
+        predictions = predictions.to(DEVICE)
+        ground_truth = ground_truth.to(DEVICE)
+        iou_evaluator.update(predictions, ground_truth)
         mean_iou = iou_evaluator.get_mean_iou()
         print("Mean IOU is: ", mean_iou)
 
