@@ -1,31 +1,18 @@
-import PIL.Image
+import cv2
+import os
+import xml.etree.ElementTree as et
+
 import cv2
 import numpy as np
-import os
-import csv
-from PIL import Image
 import torch
-import torchvision.transforms as transforms
-from sklearn.utils import shuffle
-from sklearn.model_selection import train_test_split
-import random
-import torch.nn as nn
 import torch.optim as optim
+import torchvision.transforms as transforms
+from PIL import Image, ImageDraw
 from torch.utils.data import DataLoader
 from torchvision.models.segmentation.deeplabv3 import DeepLabHead
-from torchvision.models.segmentation.deeplabv3 import deeplabv3_resnet50,DeepLabV3_ResNet50_Weights
+from torchvision.models.segmentation.deeplabv3 import deeplabv3_resnet50, DeepLabV3_ResNet50_Weights
 
 
-
-from torchvision import models
-from sklearn.metrics import average_precision_score
-
-from torchvision.models.segmentation import fcn_resnet50,FCN_ResNet50_Weights
-
-from PIL import Image, ImageDraw
-import numpy as np
-import xml.etree.ElementTree as et
-import matplotlib.pyplot as plts
 class ImageSegmentationDataset(torch.utils.data.Dataset):
     def __init__(self,img_path,annot_path,mask_path,transforms):
         self.transform = transforms
@@ -191,10 +178,3 @@ if __name__ == "__main__":
         bestmeasure = None
         avg_loss = train_model(model,dataloaders['train'],loss_crit,optimizer,device)
         print(avg_loss.item())
-
-
-
-
-
-
-
